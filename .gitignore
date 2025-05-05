@@ -1,0 +1,10 @@
+.cursorrules
+.DS_Store
+.venv/*
+*/.venv/*
+**/__pycache__/*
+*.pcap
+*.pcapng
+*.log
+*.jsonl
+*.json
