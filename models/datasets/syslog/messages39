@@ -1,0 +1,154 @@
+May 25 03:29:02 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 04:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 04:01:01 moe-dev04 systemd: Started Session 20749 of user root.
+May 25 04:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 05:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 05:01:01 moe-dev04 systemd: Started Session 20750 of user root.
+May 25 05:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 05:34:27 moe-dev04 dhclient[21243]: DHCPREQUEST on eth0 to 192.168.102.89 port 67 (xid=0x4c2a7867)
+May 25 05:34:27 moe-dev04 dhclient[21243]: DHCPACK from 192.168.102.89 (xid=0x4c2a7867)
+May 25 05:34:27 moe-dev04 NetworkManager[21213]: <info>  [1748118867.6959] dhcp4 (eth0):   address 192.168.105.39
+May 25 05:34:27 moe-dev04 NetworkManager[21213]: <info>  [1748118867.6961] dhcp4 (eth0):   plen 20 (255.255.240.0)
+May 25 05:34:27 moe-dev04 NetworkManager[21213]: <info>  [1748118867.6963] dhcp4 (eth0):   classless static route 169.254.169.254/32 gw 192.168.102.89
+May 25 05:34:27 moe-dev04 NetworkManager[21213]: <info>  [1748118867.6963] dhcp4 (eth0):   gateway 192.168.100.1
+May 25 05:34:27 moe-dev04 NetworkManager[21213]: <info>  [1748118867.6963] dhcp4 (eth0):   lease time 86400
+May 25 05:34:27 moe-dev04 NetworkManager[21213]: <info>  [1748118867.6963] dhcp4 (eth0):   hostname 'host-192-168-105-39'
+May 25 05:34:27 moe-dev04 NetworkManager[21213]: <info>  [1748118867.6963] dhcp4 (eth0):   nameserver '192.168.107.7'
+May 25 05:34:27 moe-dev04 NetworkManager[21213]: <info>  [1748118867.6963] dhcp4 (eth0):   domain name 'openstacklocal'
+May 25 05:34:27 moe-dev04 NetworkManager[21213]: <info>  [1748118867.6964] dhcp4 (eth0): state changed bound -> bound
+May 25 05:34:27 moe-dev04 dhclient[21243]: bound to 192.168.105.39 -- renewal in 33885 seconds.
+May 25 06:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 06:01:01 moe-dev04 systemd: Started Session 20751 of user root.
+May 25 06:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 07:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 07:01:01 moe-dev04 systemd: Started Session 20752 of user root.
+May 25 07:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 08:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 08:01:01 moe-dev04 systemd: Started Session 20753 of user root.
+May 25 08:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 09:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 09:01:01 moe-dev04 systemd: Started Session 20754 of user root.
+May 25 09:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 10:01:02 moe-dev04 systemd: Created slice User Slice of root.
+May 25 10:01:02 moe-dev04 systemd: Started Session 20755 of user root.
+May 25 10:01:02 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 11:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 11:01:01 moe-dev04 systemd: Started Session 20756 of user root.
+May 25 11:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 12:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 12:01:01 moe-dev04 systemd: Started Session 20757 of user root.
+May 25 12:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 13:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 13:01:01 moe-dev04 systemd: Started Session 20758 of user root.
+May 25 13:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 14:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 14:01:01 moe-dev04 systemd: Started Session 20759 of user root.
+May 25 14:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 14:59:12 moe-dev04 dhclient[21243]: DHCPREQUEST on eth0 to 192.168.102.89 port 67 (xid=0x4c2a7867)
+May 25 14:59:12 moe-dev04 dhclient[21243]: DHCPACK from 192.168.102.89 (xid=0x4c2a7867)
+May 25 14:59:12 moe-dev04 NetworkManager[21213]: <info>  [1748152752.8610] dhcp4 (eth0):   address 192.168.105.39
+May 25 14:59:12 moe-dev04 NetworkManager[21213]: <info>  [1748152752.8611] dhcp4 (eth0):   plen 20 (255.255.240.0)
+May 25 14:59:12 moe-dev04 NetworkManager[21213]: <info>  [1748152752.8613] dhcp4 (eth0):   classless static route 169.254.169.254/32 gw 192.168.102.89
+May 25 14:59:12 moe-dev04 NetworkManager[21213]: <info>  [1748152752.8614] dhcp4 (eth0):   gateway 192.168.100.1
+May 25 14:59:12 moe-dev04 NetworkManager[21213]: <info>  [1748152752.8614] dhcp4 (eth0):   lease time 86400
+May 25 14:59:12 moe-dev04 NetworkManager[21213]: <info>  [1748152752.8614] dhcp4 (eth0):   hostname 'host-192-168-105-39'
+May 25 14:59:12 moe-dev04 NetworkManager[21213]: <info>  [1748152752.8614] dhcp4 (eth0):   nameserver '192.168.107.7'
+May 25 14:59:12 moe-dev04 NetworkManager[21213]: <info>  [1748152752.8615] dhcp4 (eth0):   domain name 'openstacklocal'
+May 25 14:59:12 moe-dev04 NetworkManager[21213]: <info>  [1748152752.8615] dhcp4 (eth0): state changed bound -> bound
+May 25 14:59:12 moe-dev04 dhclient[21243]: bound to 192.168.105.39 -- renewal in 31639 seconds.
+May 25 15:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 15:01:01 moe-dev04 systemd: Started Session 20760 of user root.
+May 25 15:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 16:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 16:01:01 moe-dev04 systemd: Started Session 20761 of user root.
+May 25 16:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 17:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 17:01:01 moe-dev04 systemd: Started Session 20762 of user root.
+May 25 17:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 18:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 18:01:01 moe-dev04 systemd: Started Session 20763 of user root.
+May 25 18:01:02 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 18:13:42 moe-dev04 systemd: Starting Cleanup of Temporary Directories...
+May 25 18:13:42 moe-dev04 systemd-tmpfiles: Failed to parse ACL "d:group:adm:r-x,d:group:wheel:r-x": Invalid argument. Ignoring
+May 25 18:13:42 moe-dev04 systemd-tmpfiles: Failed to parse ACL "group:adm:r-x,group:wheel:r-x": Invalid argument. Ignoring
+May 25 18:13:42 moe-dev04 systemd-tmpfiles: Failed to parse ACL "d:group:adm:r-x,d:group:wheel:r-x": Invalid argument. Ignoring
+May 25 18:13:42 moe-dev04 systemd-tmpfiles: Failed to parse ACL "group:adm:r-x,group:wheel:r-x": Invalid argument. Ignoring
+May 25 18:13:42 moe-dev04 systemd-tmpfiles: Failed to parse ACL "d:group:adm:r-x,d:group:wheel:r-x": Invalid argument. Ignoring
+May 25 18:13:42 moe-dev04 systemd-tmpfiles: Failed to parse ACL "group:adm:r-x,group:wheel:r-x": Invalid argument. Ignoring
+May 25 18:13:42 moe-dev04 systemd-tmpfiles: Failed to parse ACL "group:adm:r--,group:wheel:r--": Invalid argument. Ignoring
+May 25 18:13:42 moe-dev04 systemd: Started Cleanup of Temporary Directories.
+May 25 19:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 19:01:01 moe-dev04 systemd: Started Session 20764 of user root.
+May 25 19:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 20:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 20:01:01 moe-dev04 systemd: Started Session 20765 of user root.
+May 25 20:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 21:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 21:01:01 moe-dev04 systemd: Started Session 20766 of user root.
+May 25 21:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 22:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 22:01:01 moe-dev04 systemd: Started Session 20767 of user root.
+May 25 22:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 23:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 25 23:01:01 moe-dev04 systemd: Started Session 20768 of user root.
+May 25 23:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 25 23:46:31 moe-dev04 dhclient[21243]: DHCPREQUEST on eth0 to 192.168.102.89 port 67 (xid=0x4c2a7867)
+May 25 23:46:31 moe-dev04 dhclient[21243]: DHCPACK from 192.168.102.89 (xid=0x4c2a7867)
+May 25 23:46:31 moe-dev04 NetworkManager[21213]: <info>  [1748184391.8812] dhcp4 (eth0):   address 192.168.105.39
+May 25 23:46:31 moe-dev04 NetworkManager[21213]: <info>  [1748184391.8813] dhcp4 (eth0):   plen 20 (255.255.240.0)
+May 25 23:46:31 moe-dev04 NetworkManager[21213]: <info>  [1748184391.8816] dhcp4 (eth0):   classless static route 169.254.169.254/32 gw 192.168.102.89
+May 25 23:46:31 moe-dev04 NetworkManager[21213]: <info>  [1748184391.8816] dhcp4 (eth0):   gateway 192.168.100.1
+May 25 23:46:31 moe-dev04 NetworkManager[21213]: <info>  [1748184391.8816] dhcp4 (eth0):   lease time 86400
+May 25 23:46:31 moe-dev04 NetworkManager[21213]: <info>  [1748184391.8816] dhcp4 (eth0):   hostname 'host-192-168-105-39'
+May 25 23:46:31 moe-dev04 NetworkManager[21213]: <info>  [1748184391.8817] dhcp4 (eth0):   nameserver '192.168.107.7'
+May 25 23:46:31 moe-dev04 NetworkManager[21213]: <info>  [1748184391.8817] dhcp4 (eth0):   domain name 'openstacklocal'
+May 25 23:46:31 moe-dev04 NetworkManager[21213]: <info>  [1748184391.8817] dhcp4 (eth0): state changed bound -> bound
+May 25 23:46:31 moe-dev04 dhclient[21243]: bound to 192.168.105.39 -- renewal in 30871 seconds.
+May 26 00:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 26 00:01:01 moe-dev04 systemd: Started Session 20769 of user root.
+May 26 00:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 26 01:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 26 01:01:01 moe-dev04 systemd: Started Session 20770 of user root.
+May 26 01:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 26 02:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 26 02:01:01 moe-dev04 systemd: Started Session 20771 of user root.
+May 26 02:01:02 moe-dev04 systemd: Removed slice User Slice of root.
+May 26 03:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 26 03:01:01 moe-dev04 systemd: Started Session 20772 of user root.
+May 26 03:45:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 26 04:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 26 04:01:01 moe-dev04 systemd: Started Session 20773 of user root.
+May 26 04:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 26 05:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 26 05:01:01 moe-dev04 systemd: Started Session 20774 of user root.
+May 26 05:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 26 06:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 26 06:01:01 moe-dev04 systemd: Started Session 20775 of user root.
+May 26 06:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 26 07:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 26 07:01:01 moe-dev04 systemd: Started Session 20776 of user root.
+May 26 07:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 26 08:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 26 08:01:01 moe-dev04 systemd: Started Session 20777 of user root.
+May 26 08:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 26 08:21:02 moe-dev04 dhclient[21243]: DHCPREQUEST on eth0 to 192.168.102.89 port 67 (xid=0x4c2a7867)
+May 26 08:21:02 moe-dev04 dhclient[21243]: DHCPACK from 192.168.102.89 (xid=0x4c2a7867)
+May 26 08:21:02 moe-dev04 NetworkManager[21213]: <info>  [1748215262.6439] dhcp4 (eth0):   address 192.168.105.39
+May 26 08:21:02 moe-dev04 NetworkManager[21213]: <info>  [1748215262.6440] dhcp4 (eth0):   plen 20 (255.255.240.0)
+May 26 08:21:02 moe-dev04 NetworkManager[21213]: <info>  [1748215262.6442] dhcp4 (eth0):   classless static route 169.254.169.254/32 gw 192.168.102.89
+May 26 08:21:02 moe-dev04 NetworkManager[21213]: <info>  [1748215262.6442] dhcp4 (eth0):   gateway 192.168.100.1
+May 26 08:21:02 moe-dev04 NetworkManager[21213]: <info>  [1748215262.6443] dhcp4 (eth0):   lease time 86400
+May 26 08:21:02 moe-dev04 NetworkManager[21213]: <info>  [1748215262.6443] dhcp4 (eth0):   hostname 'host-192-168-105-39'
+May 26 08:21:02 moe-dev04 NetworkManager[21213]: <info>  [1748215262.6443] dhcp4 (eth0):   nameserver '192.168.107.7'
+May 26 08:21:02 moe-dev04 NetworkManager[21213]: <info>  [1748215262.6443] dhcp4 (eth0):   domain name 'openstacklocal'
+May 26 08:21:02 moe-dev04 NetworkManager[21213]: <info>  [1748215262.6444] dhcp4 (eth0): state changed bound -> bound
+May 26 08:21:02 moe-dev04 dhclient[21243]: bound to 192.168.105.39 -- renewal in 36105 seconds.
+May 26 09:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 26 09:01:01 moe-dev04 systemd: Started Session 20778 of user root.
+May 26 09:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 26 10:01:01 moe-dev04 systemd: Created slice User Slice of root.
+May 26 10:01:01 moe-dev04 systemd: Started Session 20779 of user root.
+May 26 10:01:01 moe-dev04 systemd: Removed slice User Slice of root.
+May 26 10:13:30 moe-dev04 systemd-logind: New session 20780 of user bigdata.
+May 26 10:13:30 moe-dev04 systemd: Started Session 20780 of user bigdata.
+May 26 10:14:06 moe-dev04 yum[16326]: Installed: lrzsz-0.12.20-36.el7.x86_64

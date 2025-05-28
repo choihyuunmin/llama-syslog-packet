@@ -1,0 +1,10 @@
+May  7 16:01:52 moe-dev01 sshd[5992]: Accepted password for bigdata from 192.168.102.82 port 57852 ssh2
+May  7 16:01:52 moe-dev01 sshd[5992]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May  7 16:01:53 moe-dev01 sudo: bigdata : TTY=pts/0 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su -
+May  7 16:01:53 moe-dev01 sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May  7 16:01:53 moe-dev01 su: pam_unix(su-l:session): session opened for user root by bigdata(uid=0)
+May  7 16:03:38 moe-dev01 su: pam_unix(su-l:session): session closed for user root
+May  7 16:03:38 moe-dev01 sudo: pam_unix(sudo:session): session closed for user root
+May  7 16:03:39 moe-dev01 sshd[6030]: Received disconnect from 192.168.102.82 port 57852:11: disconnected by user
+May  7 16:03:39 moe-dev01 sshd[6030]: Disconnected from 192.168.102.82 port 57852
+May  7 16:03:39 moe-dev01 sshd[5992]: pam_unix(sshd:session): session closed for user bigdata

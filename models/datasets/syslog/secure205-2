@@ -1,0 +1,47 @@
+May 12 08:53:52 molit-test-01 sshd[26580]: Accepted password for amiusr from 20.0.0.7 port 49196 ssh2
+May 12 08:53:52 molit-test-01 sshd[26580]: pam_unix(sshd:session): session opened for user amiusr by (uid=0)
+May 12 13:10:55 molit-test-01 sshd[15129]: Accepted password for amiusr from 20.0.0.24 port 51506 ssh2
+May 12 13:10:55 molit-test-01 sshd[15129]: pam_unix(sshd:session): session opened for user amiusr by (uid=0)
+May 12 13:40:16 molit-test-01 sshd[26580]: pam_unix(sshd:session): session closed for user amiusr
+May 12 15:29:14 molit-test-01 sshd[28253]: Accepted password for amiusr from 20.0.0.21 port 52792 ssh2
+May 12 15:29:14 molit-test-01 sshd[28253]: pam_unix(sshd:session): session opened for user amiusr by (uid=0)
+May 12 15:57:23 molit-test-01 sshd[12029]: Accepted password for amiusr from 20.0.0.21 port 53446 ssh2
+May 12 15:57:23 molit-test-01 sshd[12029]: pam_unix(sshd:session): session opened for user amiusr by (uid=0)
+May 12 16:06:21 molit-test-01 sshd[15129]: pam_unix(sshd:session): session closed for user amiusr
+May 12 20:11:34 molit-test-01 sshd[28253]: pam_unix(sshd:session): session closed for user amiusr
+May 12 20:11:41 molit-test-01 sshd[12029]: pam_unix(sshd:session): session closed for user amiusr
+May 13 17:01:49 molit-test-01 sshd[18455]: Accepted password for bigdata from 20.0.0.6 port 8828 ssh2
+May 13 17:01:49 molit-test-01 sshd[18455]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 13 17:01:57 molit-test-01 sudo: bigdata : TTY=pts/0 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - amiusr
+May 13 17:01:57 molit-test-01 sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 13 17:01:57 molit-test-01 su: pam_unix(su-l:session): session opened for user amiusr by bigdata(uid=0)
+May 13 17:09:41 molit-test-01 sshd[30100]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=20.0.0.10  user=bigdata
+May 13 17:09:42 molit-test-01 sshd[30100]: Failed password for bigdata from 20.0.0.10 port 57639 ssh2
+May 13 17:09:54 molit-test-01 sshd[30100]: Accepted password for bigdata from 20.0.0.10 port 57639 ssh2
+May 13 17:09:54 molit-test-01 sshd[30100]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 13 17:10:21 molit-test-01 sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - amiusr
+May 13 17:10:21 molit-test-01 sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 13 17:10:21 molit-test-01 su: pam_unix(su-l:session): session opened for user amiusr by bigdata(uid=0)
+May 13 17:16:50 molit-test-01 sshd[18455]: pam_unix(sshd:session): session closed for user bigdata
+May 13 17:16:50 molit-test-01 su: pam_unix(su-l:session): session closed for user amiusr
+May 13 17:16:50 molit-test-01 sudo: pam_unix(sudo:session): session closed for user root
+May 13 17:43:09 molit-test-01 sshd[31630]: Received disconnect from 20.0.0.10 port 57639:11: disconnected by user
+May 13 17:43:09 molit-test-01 sshd[31630]: Disconnected from 20.0.0.10 port 57639
+May 13 17:43:09 molit-test-01 sshd[30100]: pam_unix(sshd:session): session closed for user bigdata
+May 13 17:43:09 molit-test-01 su: pam_unix(su-l:session): session closed for user amiusr
+May 13 17:43:09 molit-test-01 sudo: pam_unix(sudo:session): session closed for user root
+May 14 13:43:13 molit-test-01 sshd[16158]: Accepted password for bigdata from 20.0.0.5 port 51477 ssh2
+May 14 13:43:13 molit-test-01 sshd[16158]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 14 13:43:16 molit-test-01 sudo: bigdata : TTY=pts/0 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - amiusr
+May 14 13:43:16 molit-test-01 sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 14 13:43:16 molit-test-01 su: pam_unix(su-l:session): session opened for user amiusr by bigdata(uid=0)
+May 14 15:57:05 molit-test-01 sshd[16158]: pam_unix(sshd:session): session closed for user bigdata
+May 14 15:57:05 molit-test-01 su: pam_unix(su-l:session): session closed for user amiusr
+May 14 15:57:05 molit-test-01 sudo: pam_unix(sudo:session): session closed for user root
+May 16 13:32:05 molit-test-01 sshd[23513]: Accepted password for bigdata from 20.0.0.13 port 51615 ssh2
+May 16 13:32:05 molit-test-01 sshd[23513]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 16 13:32:47 molit-test-01 su: pam_unix(su-l:auth): authentication failure; logname=bigdata uid=1004 euid=0 tty=pts/0 ruser=bigdata rhost=  user=amiusr
+May 16 13:33:00 molit-test-01 su: pam_unix(su-l:auth): authentication failure; logname=bigdata uid=1004 euid=0 tty=pts/0 ruser=bigdata rhost=  user=amiusr
+May 16 13:50:11 molit-test-01 su: pam_unix(su-l:auth): authentication failure; logname=bigdata uid=1004 euid=0 tty=pts/0 ruser=bigdata rhost=  user=amiusr
+May 16 13:50:24 molit-test-01 su: pam_unix(su-l:auth): authentication failure; logname=bigdata uid=1004 euid=0 tty=pts/0 ruser=bigdata rhost=  user=amiusr
+May 16 16:15:42 molit-test-01 sshd[23513]: pam_unix(sshd:session): session closed for user bigdata

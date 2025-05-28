@@ -1,0 +1,39 @@
+May  7 16:03:34 moe-dev02 sshd[4351]: Accepted password for bigdata from 172.16.0.164 port 49753 ssh2
+May  7 16:03:34 moe-dev02 sshd[4351]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May  7 16:03:37 moe-dev02 sshd[4351]: pam_unix(sshd:session): session closed for user bigdata
+May  7 17:24:10 moe-dev02 sshd[15547]: Accepted password for bigdata from 20.0.0.4 port 52369 ssh2
+May  7 17:24:10 moe-dev02 sshd[15547]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May  7 17:24:13 moe-dev02 sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/bash
+May  7 17:24:13 moe-dev02 sudo: pam_unix(sudo-i:session): session opened for user root by bigdata(uid=0)
+May  7 19:45:29 moe-dev02 sshd[15547]: pam_unix(sshd:session): session closed for user bigdata
+May  7 19:45:29 moe-dev02 sudo: pam_unix(sudo-i:session): session closed for user root
+May  8 14:46:23 moe-dev02 sshd[25957]: Accepted password for bigdata from 20.0.0.30 port 53534 ssh2
+May  8 14:46:23 moe-dev02 sshd[25957]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May  8 14:46:30 moe-dev02 sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/bash
+May  8 14:46:30 moe-dev02 sudo: pam_unix(sudo-i:session): session opened for user root by bigdata(uid=0)
+May  8 17:01:10 moe-dev02 sshd[1543]: Accepted password for bigdata from 172.16.1.0 port 52071 ssh2
+May  8 17:01:10 moe-dev02 sshd[1543]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May  8 17:01:12 moe-dev02 sudo: bigdata : TTY=pts/2 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su -
+May  8 17:01:12 moe-dev02 sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May  8 17:01:12 moe-dev02 su: pam_unix(su-l:session): session opened for user root by bigdata(uid=0)
+May  8 17:30:52 moe-dev02 su: pam_unix(su-l:session): session closed for user root
+May  8 17:30:52 moe-dev02 sudo: pam_unix(sudo:session): session closed for user root
+May  8 17:30:53 moe-dev02 sshd[1551]: Received disconnect from 172.16.1.0 port 52071:11: Normal Shutdown
+May  8 17:30:53 moe-dev02 sshd[1551]: Disconnected from 172.16.1.0 port 52071
+May  8 17:30:53 moe-dev02 sshd[1543]: pam_unix(sshd:session): session closed for user bigdata
+May  8 19:46:52 moe-dev02 sshd[25957]: pam_unix(sshd:session): session closed for user bigdata
+May  8 19:46:52 moe-dev02 sudo: pam_unix(sudo-i:session): session closed for user root
+May  9 18:26:24 moe-dev02 sshd[11015]: Accepted password for bigdata from 20.0.0.10 port 63435 ssh2
+May  9 18:26:24 moe-dev02 sshd[11015]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May  9 18:26:28 moe-dev02 sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/bash
+May  9 18:26:28 moe-dev02 sudo: pam_unix(sudo-i:session): session opened for user root by bigdata(uid=0)
+May  9 18:43:52 moe-dev02 sshd[21349]: Accepted password for bigdata from 20.0.0.10 port 63967 ssh2
+May  9 18:43:52 moe-dev02 sshd[21349]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May  9 18:46:12 moe-dev02 sshd[21353]: Received disconnect from 20.0.0.10 port 63967:11: Normal Shutdown
+May  9 18:46:12 moe-dev02 sshd[21353]: Disconnected from 20.0.0.10 port 63967
+May  9 18:46:12 moe-dev02 sshd[21349]: pam_unix(sshd:session): session closed for user bigdata
+May  9 19:46:37 moe-dev02 sshd[24982]: Accepted password for bigdata from 20.0.0.10 port 51471 ssh2
+May  9 19:46:38 moe-dev02 sshd[24982]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May  9 19:58:47 moe-dev02 sshd[24982]: pam_unix(sshd:session): session closed for user bigdata
+May  9 19:58:47 moe-dev02 sshd[11015]: pam_unix(sshd:session): session closed for user bigdata
+May  9 19:58:47 moe-dev02 sudo: pam_unix(sudo-i:session): session closed for user root

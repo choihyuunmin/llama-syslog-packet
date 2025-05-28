@@ -192,7 +192,7 @@ class PcapProcessor:
             "answer": self._get_ids_recommendations()
         })
         
-        # Network segmentation  │  ~/W/syspacket/models │   master ?7  python generate_datasets.py --pcap datasets/packet/vpn/vpn_netflix_A.pcap --output-dir processed/
+        # Network segmentation
         questions.append({
             "question": "Based on the traffic analysis, what network segmentation recommendations can be made?",
             "answer": self._get_network_segmentation_recommendations()

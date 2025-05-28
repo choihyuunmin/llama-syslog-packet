@@ -11,13 +11,6 @@ logger = logging.getLogger(__name__)
 
 class DrainLogParser:
     def __init__(self, depth: int = 4, max_children: int = 100, similarity_threshold: float = 0.5):
-        """Drain 파서 초기화.
-        
-        Args:
-            depth (int): 트리의 최대 깊이
-            max_children (int): 노드당 최대 자식 수
-            similarity_threshold (float): 템플릿 매칭을 위한 유사도 임계값
-        """
         self.depth = depth
         self.max_children = max_children
         self.similarity_threshold = similarity_threshold
@@ -26,21 +19,12 @@ class DrainLogParser:
         self.template_count: Dict[str, int] = {}
         
     def _create_node(self) -> Dict:
-        """새로운 트리 노드 생성."""
         return {
             'children': {},
             'templates': {}
         }
     
     def _get_log_tokens(self, log_line: str) -> List[str]:
-        """로그 라인을 토큰으로 분리.
-        
-        Args:
-            log_line (str): 원본 로그 라인
-            
-        Returns:
-            List[str]: 토큰화된 로그 라인
-        """
         # 공백으로 분리하고 특수문자 처리
         tokens = re.split(r'[\s=:,]', log_line)
         return [t for t in tokens if t]
