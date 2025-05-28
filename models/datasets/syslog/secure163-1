@@ -1,0 +1,135 @@
+May 20 16:39:09 krit-wwas-dev sshd[9587]: Accepted password for bigdata from 20.0.0.7 port 51281 ssh2
+May 20 16:39:09 krit-wwas-dev sshd[9587]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 20 16:39:12 krit-wwas-dev sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 20 16:39:12 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 20 16:39:12 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 20 16:55:31 krit-wwas-dev sudo: bigdata : TTY=pts/3 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 20 16:55:31 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 20 16:55:31 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 20 17:41:15 krit-wwas-dev sshd[9590]: Timeout, client not responding.
+May 20 17:41:15 krit-wwas-dev sshd[9587]: pam_unix(sshd:session): session closed for user bigdata
+May 20 17:41:15 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 20 17:41:15 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 20 17:41:15 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 20 17:41:15 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 21 13:24:28 krit-wwas-dev sshd[25035]: Accepted password for bigdata from 20.0.0.4 port 55164 ssh2
+May 21 13:24:28 krit-wwas-dev sshd[25035]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 21 13:24:30 krit-wwas-dev sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 21 13:24:30 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 21 13:24:30 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 21 14:47:21 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 21 14:47:21 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 21 14:47:21 krit-wwas-dev sshd[25035]: pam_unix(sshd:session): session closed for user bigdata
+May 21 15:36:28 krit-wwas-dev sshd[4773]: Accepted password for bigdata from 20.0.0.4 port 49674 ssh2
+May 21 15:36:28 krit-wwas-dev sshd[4773]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 21 15:36:30 krit-wwas-dev sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 21 15:36:30 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 21 15:36:30 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 21 15:38:06 krit-wwas-dev sudo: bigdata : TTY=pts/3 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 21 15:38:06 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 21 15:38:06 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 21 16:35:34 krit-wwas-dev sshd[4775]: Timeout, client not responding.
+May 21 16:35:34 krit-wwas-dev sshd[4773]: pam_unix(sshd:session): session closed for user bigdata
+May 21 16:35:34 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 21 16:35:34 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 21 16:35:34 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 21 16:35:34 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 21 19:08:53 krit-wwas-dev sshd[24101]: Accepted password for bigdata from 20.0.0.2 port 56065 ssh2
+May 21 19:08:53 krit-wwas-dev sshd[24101]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 21 19:08:55 krit-wwas-dev sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 21 19:08:55 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 21 19:08:55 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 21 19:10:22 krit-wwas-dev sudo: bigdata : TTY=pts/3 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 21 19:10:22 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 21 19:10:22 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 21 19:13:58 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 21 19:13:58 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 21 19:13:58 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 21 19:13:58 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 21 19:13:58 krit-wwas-dev sshd[24101]: pam_unix(sshd:session): session closed for user bigdata
+May 22 09:30:56 krit-wwas-dev sshd[5256]: Accepted password for bigdata from 20.0.0.12 port 59656 ssh2
+May 22 09:30:56 krit-wwas-dev sshd[5256]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 22 09:30:58 krit-wwas-dev sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 22 09:30:58 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 22 09:30:58 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 22 09:35:35 krit-wwas-dev sudo: bigdata : TTY=pts/3 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 22 09:35:35 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 22 09:35:35 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 22 09:55:44 krit-wwas-dev sshd[5259]: Timeout, client not responding.
+May 22 09:55:44 krit-wwas-dev sshd[5256]: pam_unix(sshd:session): session closed for user bigdata
+May 22 09:55:44 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 22 09:55:44 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 22 09:55:44 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 22 09:55:44 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 22 10:27:25 krit-wwas-dev sshd[10985]: Accepted password for bigdata from 20.0.0.15 port 56284 ssh2
+May 22 10:27:25 krit-wwas-dev sshd[10985]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 22 10:27:28 krit-wwas-dev sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 22 10:27:28 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 22 10:27:28 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 22 10:31:42 krit-wwas-dev sshd[11485]: Accepted password for bigdata from 20.0.0.15 port 55500 ssh2
+May 22 10:31:42 krit-wwas-dev sshd[11485]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 22 10:31:43 krit-wwas-dev sudo: bigdata : TTY=pts/3 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 22 10:31:43 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 22 10:31:43 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 22 11:29:49 krit-wwas-dev sshd[10987]: Timeout, client not responding.
+May 22 11:29:49 krit-wwas-dev sshd[10985]: pam_unix(sshd:session): session closed for user bigdata
+May 22 11:29:49 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 22 11:29:49 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 22 11:29:54 krit-wwas-dev sshd[11488]: Timeout, client not responding.
+May 22 11:29:54 krit-wwas-dev sshd[11485]: pam_unix(sshd:session): session closed for user bigdata
+May 22 11:29:54 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 22 11:29:54 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 22 14:21:10 krit-wwas-dev sshd[31961]: Accepted password for bigdata from 20.0.0.14 port 49677 ssh2
+May 22 14:21:10 krit-wwas-dev sshd[31961]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 22 14:21:12 krit-wwas-dev sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 22 14:21:12 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 22 14:21:12 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 22 14:24:43 krit-wwas-dev sudo: bigdata : TTY=pts/3 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 22 14:24:43 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 22 14:24:43 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 22 14:46:24 krit-wwas-dev sshd[31963]: Timeout, client not responding.
+May 22 14:46:24 krit-wwas-dev sshd[31961]: pam_unix(sshd:session): session closed for user bigdata
+May 22 14:46:24 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 22 14:46:24 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 22 14:46:24 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 22 14:46:24 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 22 15:34:37 krit-wwas-dev sshd[6992]: Accepted password for bigdata from 20.0.0.14 port 59993 ssh2
+May 22 15:34:37 krit-wwas-dev sshd[6992]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 22 15:34:37 krit-wwas-dev sshd[7028]: Accepted password for bigdata from 20.0.0.14 port 59994 ssh2
+May 22 15:34:37 krit-wwas-dev sshd[7028]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 22 15:34:46 krit-wwas-dev sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 22 15:34:46 krit-wwas-dev sudo: bigdata : TTY=pts/3 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 22 15:34:46 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 22 15:34:46 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 22 15:34:46 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 22 15:34:46 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 22 16:09:20 krit-wwas-dev sudo: bigdata : TTY=pts/4 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 22 16:09:20 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 22 16:09:20 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 22 16:37:53 krit-wwas-dev sshd[13383]: Accepted password for bigdata from 20.0.0.14 port 57354 ssh2
+May 22 16:37:53 krit-wwas-dev sshd[13383]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 22 16:38:51 krit-wwas-dev sshd[7028]: pam_unix(sshd:session): session closed for user bigdata
+May 22 16:38:51 krit-wwas-dev sshd[6992]: pam_unix(sshd:session): session closed for user bigdata
+May 22 16:38:51 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 22 16:38:51 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 22 16:38:51 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 22 16:38:51 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 22 16:38:51 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 22 16:38:51 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 22 16:38:58 krit-wwas-dev sshd[13507]: Accepted password for bigdata from 20.0.0.14 port 65071 ssh2
+May 22 16:38:58 krit-wwas-dev sshd[13507]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 22 16:38:58 krit-wwas-dev sshd[13562]: Accepted password for bigdata from 20.0.0.14 port 65072 ssh2
+May 22 16:38:58 krit-wwas-dev sshd[13562]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 22 16:39:11 krit-wwas-dev sudo: bigdata : TTY=pts/3 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 22 16:39:11 krit-wwas-dev sudo: bigdata : TTY=pts/1 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/su - jeus
+May 22 16:39:11 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 22 16:39:11 krit-wwas-dev sudo: pam_unix(sudo:session): session opened for user root by bigdata(uid=0)
+May 22 16:39:11 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 22 16:39:11 krit-wwas-dev su: pam_unix(su-l:session): session opened for user jeus by bigdata(uid=0)
+May 22 16:40:05 krit-wwas-dev sshd[13383]: pam_unix(sshd:session): session closed for user bigdata
+May 22 17:24:04 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 22 17:24:04 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 22 17:24:05 krit-wwas-dev su: pam_unix(su-l:session): session closed for user jeus
+May 22 17:24:05 krit-wwas-dev sudo: pam_unix(sudo:session): session closed for user root
+May 22 17:24:05 krit-wwas-dev sshd[13562]: pam_unix(sshd:session): session closed for user bigdata
+May 22 17:24:05 krit-wwas-dev sshd[13507]: pam_unix(sshd:session): session closed for user bigdata

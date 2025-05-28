@@ -1,0 +1,4 @@
+May 26 09:53:24 molit01 sshd[25252]: Accepted password for bigdata from 20.0.0.11 port 14934 ssh2
+May 26 09:53:24 molit01 sshd[25252]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
+May 26 09:53:26 molit01 sudo: bigdata : TTY=pts/0 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/bash
+May 26 09:53:26 molit01 sudo: pam_unix(sudo-i:session): session opened for user root by bigdata(uid=0)
