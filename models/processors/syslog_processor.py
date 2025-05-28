@@ -8,6 +8,137 @@ from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
+class DrainLogParser:
+    def __init__(self, depth: int = 4, max_children: int = 100, similarity_threshold: float = 0.5):
+        """Drain 파서 초기화.
+        
+        Args:
+            depth (int): 트리의 최대 깊이
+            max_children (int): 노드당 최대 자식 수
+            similarity_threshold (float): 템플릿 매칭을 위한 유사도 임계값
+        """
+        self.depth = depth
+        self.max_children = max_children
+        self.similarity_threshold = similarity_threshold
+        self.root = self._create_node()
+        self.log_templates: Dict[str, str] = {}
+        self.template_count: Dict[str, int] = {}
+        
+    def _create_node(self) -> Dict:
+        """새로운 트리 노드 생성."""
+        return {
+            'children': {},
+            'templates': {}
+        }
+    
+    def _get_log_tokens(self, log_line: str) -> List[str]:
+        """로그 라인을 토큰으로 분리.
+        
+        Args:
+            log_line (str): 원본 로그 라인
+            
+        Returns:
+            List[str]: 토큰화된 로그 라인
+        """
+        # 공백으로 분리하고 특수문자 처리
+        tokens = re.split(r'[\s=:,]', log_line)
+        return [t for t in tokens if t]
+    
+    def _get_token_length(self, token: str) -> int:
+        """토큰의 길이를 반환. 숫자는 0으로 처리."""
+        if token.isdigit():
+            return 0
+        return len(token)
+    
+    def _calculate_similarity(self, template: str, log_line: str) -> float:
+        """두 로그 라인 간의 유사도 계산.
+        
+        Args:
+            template (str): 템플릿 로그 라인
+            log_line (str): 비교할 로그 라인
+            
+        Returns:
+            float: 유사도 점수 (0-1)
+        """
+        template_tokens = self._get_log_tokens(template)
+        log_tokens = self._get_log_tokens(log_line)
+        
+        if len(template_tokens) != len(log_tokens):
+            return 0.0
+            
+        matches = sum(1 for t1, t2 in zip(template_tokens, log_tokens) if t1 == t2)
+        return matches / len(template_tokens)
+    
+    def _get_template_id(self, template: str) -> str:
+        """템플릿의 고유 ID 생성."""
+        return hashlib.md5(template.encode()).hexdigest()
+    
+    def parse(self, log_line: str) -> Tuple[str, str]:
+        """로그 라인을 파싱하여 템플릿과 파라미터를 추출.
+        
+        Args:
+            log_line (str): 파싱할 로그 라인
+            
+        Returns:
+            Tuple[str, str]: (템플릿 ID, 파라미터화된 로그 라인)
+        """
+        tokens = self._get_log_tokens(log_line)
+        current_node = self.root
+        
+        # 트리 순회
+        for i in range(min(self.depth, len(tokens))):
+            token = tokens[i]
+            token_length = self._get_token_length(token)
+            
+            if token_length not in current_node['children']:
+                current_node['children'][token_length] = self._create_node()
+            
+            current_node = current_node['children'][token_length]
+            
+            if token not in current_node['children']:
+                if len(current_node['children']) >= self.max_children:
+                    # 가장 유사한 템플릿 찾기
+                    best_template = None
+                    best_similarity = 0
+                    
+                    for template in current_node['templates'].values():
+                        similarity = self._calculate_similarity(template, log_line)
+                        if similarity > best_similarity:
+                            best_similarity = similarity
+                            best_template = template
+                    
+                    if best_similarity >= self.similarity_threshold:
+                        template_id = self._get_template_id(best_template)
+                        self.template_count[template_id] += 1
+                        return template_id, best_template
+                
+                current_node['children'][token] = self._create_node()
+            
+            current_node = current_node['children'][token]
+        
+        # 템플릿 매칭
+        best_template = None
+        best_similarity = 0
+        
+        for template in current_node['templates'].values():
+            similarity = self._calculate_similarity(template, log_line)
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_template = template
+        
+        if best_similarity >= self.similarity_threshold:
+            template_id = self._get_template_id(best_template)
+            self.template_count[template_id] += 1
+            return template_id, best_template
+        
+        # 새로운 템플릿 생성
+        template_id = self._get_template_id(log_line)
+        current_node['templates'][template_id] = log_line
+        self.log_templates[template_id] = log_line
+        self.template_count[template_id] = 1
+        
+        return template_id, log_line
+
 class SyslogProcessor:
     def __init__(self, syslog_file: str):
         """Initialize SyslogProcessor.
