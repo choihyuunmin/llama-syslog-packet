@@ -1,16 +1,22 @@
 import re
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any
 from datetime import datetime
 import logging
 from pathlib import Path
 import pandas as pd
 from collections import defaultdict
-import hashlib
 
 logger = logging.getLogger(__name__)
 
 class DrainLogParser:
     def __init__(self, depth: int = 4, max_children: int = 100, similarity_threshold: float = 0.5):
+        """Drain 파서 초기화.
+        
+        Args:
+            depth (int): 트리의 최대 깊이
+            max_children (int): 노드당 최대 자식 수
+            similarity_threshold (float): 템플릿 매칭을 위한 유사도 임계값
+        """
         self.depth = depth
         self.max_children = max_children
         self.similarity_threshold = similarity_threshold
@@ -19,12 +25,21 @@ class DrainLogParser:
         self.template_count: Dict[str, int] = {}
         
     def _create_node(self) -> Dict:
+        """새로운 트리 노드 생성."""
         return {
             'children': {},
             'templates': {}
         }
     
     def _get_log_tokens(self, log_line: str) -> List[str]:
+        """로그 라인을 토큰으로 분리.
+        
+        Args:
+            log_line (str): 원본 로그 라인
+            
+        Returns:
+            List[str]: 토큰화된 로그 라인
+        """
         # 공백으로 분리하고 특수문자 처리
         tokens = re.split(r'[\s=:,]', log_line)
         return [t for t in tokens if t]
@@ -134,7 +149,6 @@ class SyslogProcessor:
         self.syslog_file = Path(syslog_file)
         self.logs: List[Dict] = []
         self.df: pd.DataFrame = pd.DataFrame()
-        self.drain_parser = DrainLogParser()
         
     def process_logs(self) -> None:
         """Process syslog file and convert to structured format."""
@@ -194,16 +208,11 @@ class SyslogProcessor:
             timestamp = f"{timestamp} {current_year}"
             dt = datetime.strptime(timestamp, '%b %d %H:%M:%S %Y')
             
-            # Drain 알고리즘으로 메시지 파싱
-            template_id, parsed_message = self.drain_parser.parse(message)
-            
             return {
                 'timestamp': dt.isoformat(),
                 'host': host,
                 'program': program,
                 'message': message,
-                'template_id': template_id,
-                'parsed_message': parsed_message,
                 'severity': self._get_severity(message),
                 'category': self._get_category(message)
             }
