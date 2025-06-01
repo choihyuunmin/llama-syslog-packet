@@ -175,36 +175,45 @@ class DatasetGenerator:
         prompt = """You are a network security expert. Generate question-answer pairs about network packet and system log analysis.
                     Each response should be in the following JSON format:
                     {
-                        "question": "your question here",
-                        "answer": "your answer here",
-                        "category": "category in auth|security|system|network|application"
+                        "instruction": "your question here",
+                        "input": "context_data",
+                        "output": "your answer here"
                     }
 
-                    Here is the network packet and system log data to analyze:
+                    Here is the network packet and system log data to analyze and input data:
 
                 """
         
         # Add context data if available
         if context_data:
             if "pcap_data" in context_data:
-                prompt += "\nNetwork Packet Data:\n"
-                prompt += context_data["pcap_data"]
+                prompt += "\ncontext_data :\n"
+                # 정형화된 패킷 데이터를 JSON 형식으로 변환
+                formatted_pcap = json.dumps(context_data["pcap_data"], indent=2)
+                prompt += formatted_pcap[:50]
                 prompt += "\n"
+
+                sample_data = context_data["pcap_data"][:5]
             
             if "syslog_data" in context_data:
-                prompt += "\nSystem Log Data:\n"
-                prompt += context_data["syslog_data"]
+                prompt += "\ncontext_data :\n"
+                # 정형화된 로그 데이터를 JSON 형식으로 변환
+                formatted_syslog = json.dumps(context_data["syslog_data"], indent=2)
+                prompt += formatted_syslog[:50]
                 prompt += "\n"
+
+                sample_data = context_data["syslog_data"][:5]
         
         prompt += "\nHere are some examples of question-answer pairs:\n\n"
         
         for idx, task_dict in enumerate(prompt_instructions):
-            question = task_dict["question"]
-            answer = task_dict["answer"]
+            question = task_dict["instruction"]
+            answer = task_dict["output"]
             
             prompt += f"Example {idx + 1}:\n"
-            prompt += f"Question: {question}\n"
-            prompt += f"Answer: {answer}\n\n"
+            prompt += f"Instruction: {question}\n"
+            prompt += f"Input: {sample_data}\n"
+            prompt += f"Output: {answer}\n\n"
             
         prompt += "Now generate a new question-answer pair in the same JSON format based on the provided data:\n"
         return prompt
@@ -228,11 +237,11 @@ class DatasetGenerator:
             # Validate the structure
             if not isinstance(instruction, dict):
                 return []
-            if "question" not in instruction or "answer" not in instruction:
+            if "instruction" not in instruction or "output" not in instruction:
                 return []
                 
-            question = instruction["question"].strip()
-            answer = instruction["answer"].strip()
+            question = instruction["instruction"].strip()
+            answer = instruction["output"].strip()
             
             # Basic filtering
             if len(question.split()) <= 3 or len(question.split()) > 150:
@@ -242,8 +251,9 @@ class DatasetGenerator:
                 return []
                 
             return [{
-                "question": question,
-                "answer": answer
+                "instruction": question,
+                "input": "",
+                "output": answer
             }]
             
         except (json.JSONDecodeError, KeyError, ValueError) as e:
@@ -271,8 +281,8 @@ class DatasetGenerator:
         if existing_instructions is None:
             existing_instructions = []
             
-        all_instructions = [d["question"] for d in seed_instructions] + [
-            d["question"] for d in existing_instructions
+        all_instructions = [d["instruction"] for d in seed_instructions] + [
+            d["instruction"] for d in existing_instructions
         ]
         all_instruction_tokens = [
             self.scorer._tokenizer.tokenize(inst) for inst in all_instructions
@@ -314,7 +324,7 @@ class DatasetGenerator:
                 keep = 0
                 
                 for instruction_data_entry in instruction_data:
-                    question = instruction_data_entry["question"]
+                    question = instruction_data_entry["instruction"]
                     
                     # Skip if question already exists
                     if question in all_instructions:
@@ -334,12 +344,10 @@ class DatasetGenerator:
         return existing_instructions
     
     def generate_pcap_dataset(self, pcap_file):
-        try:
-            logger.info(f"PCAP 파일 처리 시작: {pcap_file}")
-            
+        try:            
             # PCAP 프로세서 초기화 및 처리
             processor = PcapProcessor(pcap_file)
-            pcap_data = processor.process_pcap()
+            ip_groups = processor.process_pcap()  # IP 주소별로 그룹화된 데이터 반환
             
             # 초기 데이터셋 생성
             seed_instructions = processor.generate_dataset()
@@ -364,17 +372,17 @@ class DatasetGenerator:
             # 기존 질문 추가
             for instruction in seed_instructions:
                 all_instructions.append({
-                    "question": instruction["question"],
-                    "answer": instruction["answer"],
-                    "category": instruction.get("category", "network"),
+                    "instruction": instruction["instruction"],
+                    "input": pcap_data,
+                    "output": instruction["output"],
                 })
             
             # 새로 생성된 질문 추가
             for instruction in new_instructions:
                 all_instructions.append({
-                    "question": instruction["question"],
-                    "answer": instruction["answer"],
-                    "category": instruction.get("category", "network"),
+                    "instruction": instruction["instruction"],
+                    "input": pcap_data,
+                    "output": instruction["output"],
                 })
             
             # 파일 저장
@@ -417,17 +425,17 @@ class DatasetGenerator:
             # 기존 질문 추가
             for instruction in seed_instructions:
                 all_instructions.append({
-                    "question": instruction["question"],
-                    "answer": instruction["answer"],
-                    "category": instruction.get("category", "system"),
+                    "instruction": instruction["instruction"],
+                    "input": syslog_data,
+                    "output": instruction["output"],
                 })
             
             # 새로 생성된 질문 추가
             for instruction in new_instructions:
                 all_instructions.append({
-                    "question": instruction["question"],
-                    "answer": instruction["answer"],
-                    "category": instruction.get("category", "system"),
+                    "instruction": instruction["instruction"],
+                    "input": syslog_data,
+                    "output": instruction["output"],
                 })
             
             # 파일 저장
@@ -515,7 +523,6 @@ def main():
                 logger.info(f"총 {len(pcap_files)}개의 PCAP 파일을 찾았습니다.")
                 for file_path in pcap_files:
                     try:
-                        logger.info(f"PCAP 파일 처리 시작: {file_path}")
                         generator.generate_pcap_dataset(str(file_path))
                     except Exception as e:
                         logger.error(f"PCAP 파일 처리 중 오류 발생 ({file_path}): {e}")

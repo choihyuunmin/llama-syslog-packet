@@ -1,3 +1,4 @@
+import hashlib
 import re
 from typing import Dict, List, Any
 from datetime import datetime
@@ -5,6 +6,7 @@ import logging
 from pathlib import Path
 import pandas as pd
 from collections import defaultdict
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +71,11 @@ class DrainLogParser:
         matches = sum(1 for t1, t2 in zip(template_tokens, log_tokens) if t1 == t2)
         return matches / len(template_tokens)
     
-    def _get_template_id(self, template: str) -> str:
+    def _get_template_id(self, template):
         """템플릿의 고유 ID 생성."""
         return hashlib.md5(template.encode()).hexdigest()
     
-    def parse(self, log_line: str) -> Tuple[str, str]:
+    def parse(self, log_line):
         """로그 라인을 파싱하여 템플릿과 파라미터를 추출.
         
         Args:
@@ -165,7 +167,6 @@ class SyslogProcessor:
                             log_info = self._parse_log_line(line.strip())
                             if log_info:
                                 parsed_logs.append(log_info)
-                    logger.info(f"Successfully processed syslog file with {encoding} encoding")
                     break
                 except UnicodeDecodeError:
                     logger.warning(f"Failed to decode with {encoding} encoding, trying next...")
@@ -180,6 +181,8 @@ class SyslogProcessor:
                 self.df['timestamp'] = pd.to_datetime(self.df['timestamp'])
             
             logger.info(f"Processed {len(self.logs)} log entries")
+
+            return self.logs
         except Exception as e:
             logger.error(f"Error processing syslog: {e}")
             raise
@@ -266,46 +269,46 @@ class SyslogProcessor:
         templates = {
             'basic_analysis': [
                 {
-                    'question': "What is the distribution of log entries by severity level in the system logs?",
-                    'answer': lambda: self._get_severity_distribution()
+                    'instruction': "What is the distribution of log entries by severity level in the system logs?",
+                    'output': lambda: self._get_severity_distribution()
                 },
                 {
-                    'question': "What are the most common types of security events in the logs?",
-                    'answer': lambda: self._get_security_events_summary()
+                    'instruction': "What are the most common types of security events in the logs?",
+                    'output': lambda: self._get_security_events_summary()
                 },
                 {
-                    'question': "How many authentication-related events are there in the logs?",
-                    'answer': lambda: self._get_auth_events_count()
+                    'instruction': "How many authentication-related events are there in the logs?",
+                    'output': lambda: self._get_auth_events_count()
                 }
             ],
             'advanced_analysis': [
                 {
-                    'question': "Analyze the authentication failure patterns in the logs. Are there any signs of brute force attempts?",
-                    'answer': lambda: self._analyze_auth_failures()
+                    'instruction': "Analyze the authentication failure patterns in the logs. Are there any signs of brute force attempts?",
+                    'output': lambda: self._analyze_auth_failures()
                 },
                 {
-                    'question': "What are the most critical security events observed in the logs and their potential impact?",
-                    'answer': lambda: self._analyze_critical_security_events()
+                    'instruction': "What are the most critical security events observed in the logs and their potential impact?",
+                    'output': lambda: self._analyze_critical_security_events()
                 }
             ],
             'visualization': [
                 {
-                    'question': "Create a time series visualization of security events over time.",
-                    'answer': lambda: self._get_security_visualization_code()
+                    'instruction': "Create a time series visualization of security events over time.",
+                    'output': lambda: self._get_security_visualization_code()
                 },
                 {
-                    'question': "Generate a visualization showing the distribution of different types of security events.",
-                    'answer': lambda: self._get_event_distribution_visualization()
+                    'instruction': "Generate a visualization showing the distribution of different types of security events.",
+                    'output': lambda: self._get_event_distribution_visualization()
                 }
             ],
             'security_config': [
                 {
-                    'question': "Based on the observed authentication failures, what SSH configuration changes would you recommend?",
-                    'answer': lambda: self._get_ssh_config_recommendation()
+                    'instruction': "Based on the observed authentication failures, what SSH configuration changes would you recommend?",
+                    'output': lambda: self._get_ssh_config_recommendation()
                 },
                 {
-                    'question': "What system logging configuration would you recommend based on the observed security events?",
-                    'answer': lambda: self._get_logging_config_recommendation()
+                    'instruction': "What system logging configuration would you recommend based on the observed security events?",
+                    'output': lambda: self._get_logging_config_recommendation()
                 }
             ]
         }
@@ -314,15 +317,15 @@ class SyslogProcessor:
         for category, questions in templates.items():
             for template in questions:
                 try:
-                    answer = template['answer']()
+                    answer = template['output']()
                     if answer:  # Only add if we got a valid answer
                         dataset.append({
-                            'question': template['question'],
-                            'answer': answer,
+                            'instruction': template['instruction'],
+                            'output': answer,
                             'category': category
                         })
                 except Exception as e:
-                    logger.error(f"Error generating answer for question: {template['question']}, error: {e}")
+                    logger.error(f"Error generating answer for question: {template['instruction']}, error: {e}")
         
         return dataset
     
@@ -542,7 +545,6 @@ class SyslogProcessor:
             result += "Overall Risk Assessment: LOW - Few critical security events detected\n"
         
         return result
-
     def _get_logging_config_recommendation(self) -> str:
         if self.df.empty:
             return "No logs available for logging configuration recommendations."

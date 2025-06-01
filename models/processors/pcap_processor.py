@@ -42,7 +42,7 @@ class PcapProcessor:
             return f"{packet[IP].src}:{packet[TCP].sport}-{packet[IP].dst}:{packet[TCP].dport}"
         return None
     
-    def process_pcap(self) -> None:
+    def process_pcap(self):
         try:
             logger.info(f"Pcap file name : {self.pcap_file}")
             packets = rdpcap(str(self.pcap_file))
@@ -52,6 +52,7 @@ class PcapProcessor:
                     info = self._extract_packet_info(packet)
                     if info:
                         self.packets.append(info)
+                        packets.append(info)
                         session_key = self._get_session_key(packet)
                         if session_key:
                             if session_key not in self.sessions:
@@ -60,6 +61,8 @@ class PcapProcessor:
             
             self.generate_dataset()
             logger.info(f"PCAP processing end : {len(self.packets)} packets processed")
+
+            return self.packets
         except Exception as e:
             logger.error(f"Error processing PCAP: {str(e)}")
             raise
@@ -87,20 +90,20 @@ class PcapProcessor:
         
         # Packet count analysis
         questions.append({
-            "question": "What is the total number of packets captured and what is their distribution by protocol?",
-            "answer": self._get_protocol_distribution_answer()
+            "instruction": "What is the total number of packets captured and what is their distribution by protocol?",
+            "output": self._get_protocol_distribution_answer()
         })
         
         # Top talkers analysis
         questions.append({
-            "question": "Who are the top 5 source and destination IP addresses by packet count?",
-            "answer": self._get_top_talkers_answer()
+            "instruction": "Who are the top 5 source and destination IP addresses by packet count?",
+            "output": self._get_top_talkers_answer()
         })
         
         # Basic traffic pattern
         questions.append({
-            "question": "What is the average packet size and how does it vary over time?",
-            "answer": self._get_packet_size_analysis_answer()
+            "instruction": "What is the average packet size and how does it vary over time?",
+            "output": self._get_packet_size_analysis_answer()
         })
         
         return questions
@@ -111,14 +114,14 @@ class PcapProcessor:
         
         # Protocol anomaly detection
         questions.append({
-            "question": "Are there any unusual protocol patterns that might indicate security concerns?",
-            "answer": self._get_protocol_anomaly_answer()
+            "instruction": "Are there any unusual protocol patterns that might indicate security concerns?",
+            "output": self._get_protocol_anomaly_answer()
         })
         
         # Session analysis
         questions.append({
-            "question": "Analyze the TCP session patterns. Are there any signs of scanning or suspicious behavior?",
-            "answer": self._analyze_tcp_sessions()
+            "instruction": "Analyze the TCP session patterns. Are there any signs of scanning or suspicious behavior?",
+            "output": self._analyze_tcp_sessions()
         })
         
         return questions
@@ -129,8 +132,8 @@ class PcapProcessor:
         
         # Protocol distribution pie chart
         questions.append({
-            "question": "Create a pie chart showing the distribution of network protocols.",
-            "answer": """
+            "instruction": "Create a pie chart showing the distribution of network protocols.",
+            "output": """
                 ```python
                 import matplotlib.pyplot as plt
 
@@ -150,8 +153,8 @@ class PcapProcessor:
         
         # Traffic volume time series
         questions.append({
-            "question": "Create a time series plot showing network traffic volume over time.",
-            "answer": """
+            "instruction": "Create a time series plot showing network traffic volume over time.",
+            "output": """
                 ```python
                 import pandas as pd
                 import seaborn as sns
@@ -182,20 +185,20 @@ class PcapProcessor:
         
         # Firewall rules
         questions.append({
-            "question": "What firewall rules should be implemented based on the observed suspicious traffic patterns?",
-            "answer": self._get_firewall_recommendations()
+            "instruction": "What firewall rules should be implemented based on the observed suspicious traffic patterns?",
+            "output": self._get_firewall_recommendations()
         })
         
         # IDS/IPS settings
         questions.append({
-            "question": "What IDS/IPS rules should be configured to detect and prevent the observed suspicious activities?",
-            "answer": self._get_ids_recommendations()
+            "instruction": "What IDS/IPS rules should be configured to detect and prevent the observed suspicious activities?",
+            "output": self._get_ids_recommendations()
         })
         
         # Network segmentation
         questions.append({
-            "question": "Based on the traffic analysis, what network segmentation recommendations can be made?",
-            "answer": self._get_network_segmentation_recommendations()
+            "instruction": "Based on the traffic analysis, what network segmentation recommendations can be made?",
+            "output": self._get_network_segmentation_recommendations()
         })
         
         return questions
