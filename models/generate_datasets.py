@@ -347,7 +347,7 @@ class DatasetGenerator:
         try:            
             # PCAP 프로세서 초기화 및 처리
             processor = PcapProcessor(pcap_file)
-            ip_groups = processor.process_pcap()  # IP 주소별로 그룹화된 데이터 반환
+            pcap_data = processor.process_pcap()
             
             # 초기 데이터셋 생성
             seed_instructions = processor.generate_dataset()
