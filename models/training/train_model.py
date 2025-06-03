@@ -12,10 +12,12 @@ from transformers import (
     DataCollatorForLanguageModeling,
     BitsAndBytesConfig
 )
-from datasets import Dataset
+from datasets import Dataset, load_dataset
 from peft import LoraConfig, get_peft_model, PeftModel, prepare_model_for_kbit_training
 import argparse
 from huggingface_hub import login, HfFolder
+import math
+import glob
 
 # 메모리 최적화 설정
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512,expandable_segments:True"
@@ -31,24 +33,33 @@ LORA_ALPHA = 16
 LORA_DROPOUT = 0.05
 LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj"]
 
+# 배치 크기 설정
+BATCH_SIZE = 30
+
 def check_huggingface_token():
-    """Check Hugging Face token."""
     token = HfFolder.get_token()
     if token is None:
-        print("Please input your Hugging Face token.")
-        token = input("Hugging Face 토큰을 입력하세요: ")
         login(token)
     return token
 
+def find_latest_checkpoint(output_dir):
+    checkpoints = glob.glob(os.path.join(output_dir, "batch_*"))
+    if not checkpoints:
+        return None
+    
+    latest_checkpoint = max(checkpoints, key=lambda x: int(x.split('_')[-1]))
+    return latest_checkpoint
+
 class FineTuner:
-    def __init__(self, model_name, dataset_path, output_dir, max_seq_len=512):
+    def __init__(self, model_name, dataset_name, output_dir, max_seq_len=512):
         self.model_name = model_name
-        self.dataset_path = dataset_path
+        self.dataset_name = dataset_name
         self.output_dir = output_dir
         self.max_seq_len = max_seq_len
         self.tokenizer = None
         self.model = None
         self.dataset = None
+        self.latest_checkpoint = find_latest_checkpoint(output_dir)
 
     def load_model_and_tokenizer(self):
         logger.info(f"Loading tokenizer for {self.model_name}...")
@@ -59,7 +70,6 @@ class FineTuner:
 
         logger.info(f"Loading model {self.model_name}...")
         
-        # 4비트 양자화 설정
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
@@ -75,17 +85,25 @@ class FineTuner:
                 logger.info(f"GPU {gpu_id}: {torch.cuda.get_device_name(gpu_id)}")
                 logger.info(f"GPU {gpu_id} Memory: {torch.cuda.get_device_properties(gpu_id).total_memory / 1024**3:.2f} GB")
             
-            # 메모리 캐시 정리
             torch.cuda.empty_cache()
             
-            # 모델을 CPU에 먼저 로드
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                torch_dtype=torch.float16,
-                device_map="cpu",
-                quantization_config=bnb_config,
-                low_cpu_mem_usage=True
-            )
+            if self.latest_checkpoint:
+                logger.info(f"Loading previous checkpoint from {self.latest_checkpoint}")
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.latest_checkpoint,
+                    torch_dtype=torch.float16,
+                    device_map="auto",
+                    quantization_config=bnb_config,
+                    low_cpu_mem_usage=True
+                )
+            else:
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    torch_dtype=torch.float16,
+                    device_map="auto",
+                    quantization_config=bnb_config,
+                    low_cpu_mem_usage=True
+                )
             
             # LoRA 설정 적용
             self.model = prepare_model_for_kbit_training(self.model)
@@ -113,69 +131,64 @@ class FineTuner:
             raise RuntimeError("GPU가 필요합니다. CUDA를 사용할 수 없습니다.")
 
     def load_and_process_dataset(self):
-        logger.info(f"Loading dataset from {self.dataset_path}...")
-        dataset = []
+        logger.info(f"Loading dataset from Hugging Face: {self.dataset_name}...")
         try:
-            for json_file in Path(self.dataset_path).glob('*.json'):
-                with open(json_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    if not isinstance(data, list):
-                        logger.warning(f"Skipping {json_file}: Expected list format")
-                        continue
-                    dataset.extend(data)
+            # Hugging Face에서 데이터셋 로드
+            self.dataset = load_dataset(self.dataset_name)
+            
+            def format_prompt(item):
+                category = item.get('category', 'general')
+                prompt = f"""### Instruction:
+                            You are a helpful assistant expert in network and system log analysis.
+                            You are given a pcap or log file and a question. Please provide a detailed and accurate answer.
+
+                            ### instruction:
+                            {item['instruction']}
+
+                            ### Context data:
+                            {item['input']}
+
+                            ### output:
+                            {item['output']}
+
+                            ### End"""
+                return {"text": prompt}
+
+            self.dataset = self.dataset.map(format_prompt)
+
+            def tokenize_function(examples):
+                return self.tokenizer(
+                    examples["text"],
+                    padding="max_length",
+                    truncation=True,
+                    max_length=self.max_seq_len,
+                    return_tensors="pt"
+                )
+
+            self.dataset = self.dataset.map(
+                tokenize_function,
+                batched=True,
+                remove_columns=["text", "instruction", "input", "output"]
+            )
+            
+            # 데이터셋을 30개 단위로 분할
+            total_samples = len(self.dataset)
+            self.num_batches = math.ceil(total_samples / BATCH_SIZE)
+            logger.info(f"Total samples: {total_samples}, Number of batches: {self.num_batches}")
+            
         except Exception as e:
             logger.error(f"Error loading dataset: {str(e)}")
             raise
 
-        if not dataset:
-            raise ValueError("No valid data loaded from JSON files")
-
-        self.dataset = Dataset.from_list(dataset)
-
-        def format_prompt(item):
-            category = item.get('category', 'general')
-            prompt = f"""### Instruction:
-                        You are a helpful assistant expert in network and system log analysis.
-                        You are given a log file and a question. Please provide a detailed and accurate answer.
-
-                        ### Category:
-                        {category}
-
-                        ### Question:
-                        {item['question']}
-
-                        ### Answer:
-                        {item['answer']}
-
-                        ### End"""
-            return {"text": prompt}
-
-        self.dataset = self.dataset.map(format_prompt)
-
-        def tokenize_function(examples):
-            return self.tokenizer(
-                examples["text"],
-                padding="max_length",
-                truncation=True,
-                max_length=self.max_seq_len,
-                return_tensors="pt"
-            )
-
-        self.dataset = self.dataset.map(
-            tokenize_function,
-            batched=True,
-            remove_columns=["text", "question", "answer", "category"]
-        )
-
-    def setup_training_args(self, args):
+    def setup_training_args(self, args, batch_start_idx):
         return TrainingArguments(
-            output_dir=args.output_dir,
+            output_dir=os.path.join(args.output_dir, f"batch_{batch_start_idx}"),
             per_device_train_batch_size=1,
-            gradient_accumulation_steps=128,  # 메모리 효율을 위해 증가
+            gradient_accumulation_steps=128,
             optim=args.optim,
             logging_steps=args.logging_steps,
             learning_rate=args.learning_rate,
-            fp16=True,  # FP16 활성화
+            fp16=True,
             max_grad_norm=args.max_grad_norm,
             max_steps=args.max_steps,
             warmup_ratio=args.warmup_ratio,
@@ -203,25 +216,38 @@ class FineTuner:
             self.load_model_and_tokenizer()
             self.load_and_process_dataset()
 
-            training_args = self.setup_training_args(args)
-            data_collator = DataCollatorForLanguageModeling(
-                tokenizer=self.tokenizer,
-                mlm=False
-            )
+            # 각 배치별로 학습 수행
+            for batch_idx in range(self.num_batches):
+                start_idx = batch_idx * BATCH_SIZE
+                end_idx = min((batch_idx + 1) * BATCH_SIZE, len(self.dataset))
+                
+                logger.info(f"Training batch {batch_idx + 1}/{self.num_batches} (samples {start_idx}-{end_idx})")
+                
+                # 현재 배치의 데이터셋 생성
+                batch_dataset = self.dataset.select(range(start_idx, end_idx))
+                
+                training_args = self.setup_training_args(args, start_idx)
+                data_collator = DataCollatorForLanguageModeling(
+                    tokenizer=self.tokenizer,
+                    mlm=False
+                )
 
-            trainer = Trainer(
-                model=self.model,
-                args=training_args,
-                train_dataset=self.dataset,
-                data_collator=data_collator
-            )
+                trainer = Trainer(
+                    model=self.model,
+                    args=training_args,
+                    train_dataset=batch_dataset,
+                    data_collator=data_collator
+                )
 
-            logger.info("Starting fine-tuning...")
-            trainer.train()
-            
-            logger.info("Saving fine-tuned model...")
-            trainer.save_model()
-            self.tokenizer.save_pretrained(self.output_dir)
+                logger.info(f"Starting fine-tuning for batch {batch_idx + 1}...")
+                trainer.train()
+                
+                logger.info(f"Saving fine-tuned model for batch {batch_idx + 1}...")
+                trainer.save_model()
+                self.tokenizer.save_pretrained(os.path.join(args.output_dir, f"batch_{start_idx}"))
+                
+                # 메모리 정리
+                torch.cuda.empty_cache()
             
         except Exception as e:
             logger.error(f"모델 학습 중 오류 발생: {str(e)}")
@@ -229,7 +255,7 @@ class FineTuner:
 
 def main():
     parser = argparse.ArgumentParser(description='Train a model on network and system log analysis')
-    parser.add_argument('--dataset-path', type=str, required=True, help='Path to the dataset directory')
+    parser.add_argument('--dataset-name', type=str, required=True, help='Name of the dataset on Hugging Face')
     parser.add_argument('--model-name', type=str, required=True, help='Name of the model to train')
     parser.add_argument('--output-dir', type=str, required=True, help='Directory to save the trained model')
     parser.add_argument('--batch-size', type=int, default=1, help='Training batch size')
@@ -251,7 +277,7 @@ def main():
         
     finetuner = FineTuner(
         model_name=args.model_name,
-        dataset_path=args.dataset_path,
+        dataset_name=args.dataset_name,
         output_dir=args.output_dir
     )
     

@@ -180,28 +180,14 @@ class DatasetGenerator:
                         "output": "your answer here"
                     }
 
-                    Here is the network packet and system log data to analyze and input data:
-
                 """
         
         # Add context data if available
         if context_data:
             if "pcap_data" in context_data:
-                prompt += "\ncontext_data :\n"
-                # 정형화된 패킷 데이터를 JSON 형식으로 변환
-                formatted_pcap = json.dumps(context_data["pcap_data"], indent=2)
-                prompt += formatted_pcap[:50]
-                prompt += "\n"
-
-                sample_data = context_data["pcap_data"][:5]
+                sample_data = context_data["pcap_data"]
             
             if "syslog_data" in context_data:
-                prompt += "\ncontext_data :\n"
-                # 정형화된 로그 데이터를 JSON 형식으로 변환
-                formatted_syslog = json.dumps(context_data["syslog_data"], indent=2)
-                prompt += formatted_syslog[:50]
-                prompt += "\n"
-
                 sample_data = context_data["syslog_data"][:5]
         
         prompt += "\nHere are some examples of question-answer pairs:\n\n"
@@ -212,13 +198,13 @@ class DatasetGenerator:
             
             prompt += f"Example {idx + 1}:\n"
             prompt += f"Instruction: {question}\n"
-            prompt += f"Input: {sample_data}\n"
+            prompt += f"Input: {sample_data[:5]}\n"
             prompt += f"Output: {answer}\n\n"
             
         prompt += "Now generate a new question-answer pair in the same JSON format based on the provided data:\n"
         return prompt
     
-    def post_process_gpt3_response(self, num_prompt_instructions, response):
+    def post_process_gpt3_response(self, response):
         if response is None:
             return []
             
@@ -259,18 +245,6 @@ class DatasetGenerator:
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.warning(f"Failed to parse GPT response: {e}")
             return []
-    
-    def find_word_in_string(self, word, string):
-        """문자열에서 단어 검색.
-        
-        Args:
-            word: 검색할 단어
-            string: 검색 대상 문자열
-            
-        Returns:
-            단어 존재 여부
-        """
-        return re.compile(r"\b({0})\b".format(word), flags=re.IGNORECASE).search(string)
     
     def generate_additional_instructions(
         self,
@@ -315,9 +289,7 @@ class DatasetGenerator:
                 
                 instruction_data = []
                 for result in results:
-                    new_instructions = self.post_process_gpt3_response(
-                        self.num_prompt_instructions, result
-                    )
+                    new_instructions = self.post_process_gpt3_response(result)
                     instruction_data += new_instructions
                     
                 total = len(instruction_data)
@@ -347,43 +319,54 @@ class DatasetGenerator:
         try:            
             # PCAP 프로세서 초기화 및 처리
             processor = PcapProcessor(pcap_file)
-            pcap_data = processor.process_pcap()
+            ip_groups = processor.process_pcap()
             
-            # 초기 데이터셋 생성
-            seed_instructions = processor.generate_dataset()
-            if not seed_instructions:
-                logger.warning("생성된 PCAP 데이터셋이 비어있습니다.")
+            if not ip_groups:
+                logger.warning("PCAP 데이터가 비어있습니다.")
                 return None
             
-            # 컨텍스트 데이터 준비
-            context_data = {
-                "pcap_data": str(pcap_data) if pcap_data is not None else "No PCAP data available"
-            }
-            
-            # 추가 질문 생성
-            new_instructions = self.generate_additional_instructions(
-                seed_instructions,
-                context_data=context_data
-            )
-            
-            # 기존 질문과 새로 생성된 질문 합치기
             all_instructions = []
             
-            # 기존 질문 추가
-            for instruction in seed_instructions:
-                all_instructions.append({
-                    "instruction": instruction["instruction"],
-                    "input": pcap_data,
-                    "output": instruction["output"],
-                })
+            # IP 그룹별로 데이터셋 생성
+            for ip, packets in ip_groups.items():
+                logger.info(f"IP {ip}에 대한 데이터셋 생성 시작")
+                
+                # IP별 컨텍스트 데이터 준비
+                context_data = {
+                    "pcap_data": str(packets)
+                }
+                
+                # IP별 초기 데이터셋 생성
+                seed_instructions = processor.generate_dataset()
+                if not seed_instructions:
+                    logger.warning(f"IP {ip}에 대한 생성된 데이터셋이 비어있습니다.")
+                    continue
+                
+                # IP별 추가 질문 생성
+                new_instructions = self.generate_additional_instructions(
+                    seed_instructions,
+                    context_data=context_data
+                )
+                
+                # IP별 질문 추가
+                for instruction in seed_instructions:
+                    all_instructions.append({
+                        "instruction": instruction["instruction"],
+                        "input": packets,
+                        "output": instruction["output"],
+                    })
+                
+                # IP별 새로 생성된 질문 추가
+                for instruction in new_instructions:
+                    all_instructions.append({
+                        "instruction": instruction["instruction"],
+                        "input": packets,
+                        "output": instruction["output"],
+                    })
             
-            # 새로 생성된 질문 추가
-            for instruction in new_instructions:
-                all_instructions.append({
-                    "instruction": instruction["instruction"],
-                    "input": pcap_data,
-                    "output": instruction["output"],
-                })
+            if not all_instructions:
+                logger.warning("생성된 데이터셋이 비어있습니다.")
+                return None
             
             # 파일 저장
             output_path = self._get_output_path("pcap_dataset")

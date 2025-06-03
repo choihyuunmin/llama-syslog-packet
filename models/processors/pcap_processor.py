@@ -46,13 +46,22 @@ class PcapProcessor:
         try:
             logger.info(f"Pcap file name : {self.pcap_file}")
             packets = rdpcap(str(self.pcap_file))
+            ip_groups = defaultdict(list)
             
             for packet in packets:
                 if IP in packet:
                     info = self._extract_packet_info(packet)
                     if info:
                         self.packets.append(info)
-                        packets.append(info)
+                        # IP 주소별로 그룹화
+                        src_ip = info['src_ip']
+                        dst_ip = info['dst_ip']
+                        
+                        if src_ip:
+                            ip_groups[src_ip].append(info)
+                        if dst_ip:
+                            ip_groups[dst_ip].append(info)
+                        
                         session_key = self._get_session_key(packet)
                         if session_key:
                             if session_key not in self.sessions:
@@ -62,7 +71,7 @@ class PcapProcessor:
             self.generate_dataset()
             logger.info(f"PCAP processing end : {len(self.packets)} packets processed")
 
-            return self.packets
+            return dict(ip_groups)  # IP 주소별로 그룹화된 패킷 정보 반환
         except Exception as e:
             logger.error(f"Error processing PCAP: {str(e)}")
             raise
