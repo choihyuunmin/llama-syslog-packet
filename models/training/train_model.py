@@ -43,18 +43,20 @@ def prepare_dataset(dataset_name, tokenizer, max_seq_len):
             prompts,
             padding="max_length",
             truncation=True,
-            max_length=max_seq_len
+            max_length=max_seq_len,
+            return_tensors="pt"
         )
 
     dataset = load_dataset(
-        dataset_name
+        dataset_name,
+        split="train",
+        streaming=True
     )
 
     tokenized_dataset = dataset.map(
         tokenize_function,
         batched=True,
-        remove_columns=['instruction', 'input', 'output'],
-        num_proc=1,
+        # remove_columns=['instruction', 'input', 'output'],
         batch_size=32,
     )
 
@@ -187,7 +189,7 @@ def main():
     parser.add_argument('--model-name', type=str, default="meta-llama/Meta-Llama-3-8B-Instruct")
     parser.add_argument('--output-dir', type=str, required=True)
     parser.add_argument('--batch-size', type=int, default=1)
-    parser.add_argument('--gradient-accumulation-steps', type=int, default=128)
+    parser.add_argument('--gradient-accumulation-steps', type=int, default=32)
     parser.add_argument('--optim', type=str, default="adamw_torch")
     parser.add_argument('--logging-steps', type=int, default=100)
     parser.add_argument('--learning-rate', type=float, default=2e-4)
