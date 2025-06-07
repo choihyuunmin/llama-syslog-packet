@@ -319,50 +319,46 @@ class DatasetGenerator:
         try:            
             # PCAP 프로세서 초기화 및 처리
             processor = PcapProcessor(pcap_file)
-            ip_groups = processor.process_pcap()
+            packets = processor.process_pcap()
             
-            if not ip_groups:
+            if not packets:
                 logger.warning("PCAP 데이터가 비어있습니다.")
                 return None
             
             all_instructions = []
             
-            # IP 그룹별로 데이터셋 생성
-            for ip, packets in ip_groups.items():
-                logger.info(f"IP {ip}에 대한 데이터셋 생성 시작")
-                
-                # IP별 컨텍스트 데이터 준비
-                context_data = {
-                    "pcap_data": str(packets)
-                }
-                
-                # IP별 초기 데이터셋 생성
-                seed_instructions = processor.generate_dataset()
-                if not seed_instructions:
-                    logger.warning(f"IP {ip}에 대한 생성된 데이터셋이 비어있습니다.")
-                    continue
-                
-                # IP별 추가 질문 생성
-                new_instructions = self.generate_additional_instructions(
-                    seed_instructions,
-                    context_data=context_data
-                )
-                
-                # IP별 질문 추가
-                for instruction in seed_instructions:
-                    all_instructions.append({
-                        "instruction": instruction["instruction"],
-                        "input": packets,
-                        "output": instruction["output"],
-                    })
-                
-                # IP별 새로 생성된 질문 추가
-                for instruction in new_instructions:
-                    all_instructions.append({
-                        "instruction": instruction["instruction"],
-                        "input": packets,
-                        "output": instruction["output"],
-                    })
+            # 컨텍스트 데이터 준비
+            context_data = {
+                "pcap_data": str(packets)
+            }
+            
+            # 초기 데이터셋 생성
+            seed_instructions = processor.generate_dataset()
+            if not seed_instructions:
+                logger.warning("생성된 데이터셋이 비어있습니다.")
+                return None
+            
+            # 추가 질문 생성
+            new_instructions = self.generate_additional_instructions(
+                seed_instructions,
+                context_data=context_data
+            )
+            
+            # 기존 질문 추가
+            for instruction in seed_instructions:
+                all_instructions.append({
+                    "instruction": instruction["instruction"],
+                    "input": packets,
+                    "output": instruction["output"],
+                })
+            
+            # 새로 생성된 질문 추가
+            for instruction in new_instructions:
+                all_instructions.append({
+                    "instruction": instruction["instruction"],
+                    "input": packets,
+                    "output": instruction["output"],
+                })
             
             if not all_instructions:
                 logger.warning("생성된 데이터셋이 비어있습니다.")
@@ -451,14 +447,6 @@ def validate_input_file(file_path):
         raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
 
 def find_target_files(root_path):
-    """지정된 경로 아래의 모든 파일을 재귀적으로 찾습니다.
-    
-    Args:
-        root_path: 검색을 시작할 루트 경로
-        
-    Yields:
-        찾은 파일의 경로
-    """
     root = Path(root_path)
     if not root.exists():
         raise FileNotFoundError(f"경로를 찾을 수 없습니다: {root_path}")
