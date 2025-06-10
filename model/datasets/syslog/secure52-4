@@ -1,3 +1,0 @@
-Apr 28 14:06:00 moe-dev01 sshd[31676]: Accepted password for bigdata from 172.16.0.164 port 56157 ssh2
-Apr 28 14:06:00 moe-dev01 sshd[31676]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
-Apr 28 14:06:09 moe-dev01 sshd[31676]: pam_unix(sshd:session): session closed for user bigdata

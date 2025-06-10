@@ -191,7 +191,8 @@ class FineTuner:
             torch_compile=False,
             report_to="none",
             load_best_model_at_end=False,
-            save_total_limit=2
+            save_total_limit=2,
+            push_to_hub=True
         )
 
     def train(self, args):
@@ -241,21 +242,6 @@ class FineTuner:
         )
 
         trainer.train()
-        
-        # 허깅페이스에 모델 업로드
-        logger.info("Uploading model to Hugging Face Hub...")
-        self.model.push_to_hub(
-            args.hf_model_name,
-            use_temp_dir=True,
-            token=HfFolder.get_token()
-        )
-        self.tokenizer.push_to_hub(
-            args.hf_model_name,
-            use_temp_dir=True,
-            token=HfFolder.get_token()
-        )
-        logger.info(f"Model uploaded successfully to {args.hf_model_name}")
-        
         torch.cuda.empty_cache()
 
 def main():
