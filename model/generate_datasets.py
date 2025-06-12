@@ -121,22 +121,6 @@ def openai_completion(
     return completions
 
 class DatasetGenerator:
-    """학습 데이터셋 생성기
-    
-    이 클래스는 PCAP 및 Syslog 파일을 분석하여
-    네트워크 보안 관련 질문-답변 데이터셋을 생성합니다.
-    
-    Attributes:
-        output_dir: 출력 디렉토리
-        model_name: 사용할 GPT 모델 이름
-        num_instructions_to_generate: 생성할 추가 질문 수
-        num_prompt_instructions: 프롬프트에 사용할 예시 질문 수
-        request_batch_size: 한 번에 처리할 요청 수
-        temperature: 생성 다양성 조절
-        top_p: 토큰 선택 확률 임계값
-        num_cpus: 사용할 CPU 코어 수
-    """
-    
     def __init__(
         self,
         output_dir="processed",
@@ -161,15 +145,6 @@ class DatasetGenerator:
         self.scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
         
     def encode_prompt(self, prompt_instructions, context_data=None):
-        """프롬프트 인코딩.
-        
-        Args:
-            prompt_instructions: 예시 질문-답변 쌍
-            context_data: 네트워크 패킷 및 로그 데이터
-            
-        Returns:
-            인코딩된 프롬프트
-        """
         prompt = """You are a network security expert. Generate question-answer pairs about network packet and system log analysis.
                     Each response should be in the following JSON format:
                     {
@@ -180,7 +155,6 @@ class DatasetGenerator:
 
                 """
         
-        # Add context data if available
         if context_data:
             if "pcap_data" in context_data:
                 sample_data = context_data["pcap_data"]
@@ -207,9 +181,7 @@ class DatasetGenerator:
             return []
             
         try:
-            # Extract JSON from the response
             json_str = response["text"].strip()
-            # Find the first occurrence of a JSON object
             start_idx = json_str.find("{")
             end_idx = json_str.rfind("}") + 1
             if start_idx == -1 or end_idx == 0:
@@ -218,7 +190,6 @@ class DatasetGenerator:
             json_str = json_str[start_idx:end_idx]
             instruction = json.loads(json_str)
             
-            # Validate the structure
             if not isinstance(instruction, dict):
                 return []
             if "instruction" not in instruction or "output" not in instruction:
@@ -227,7 +198,6 @@ class DatasetGenerator:
             question = instruction["instruction"].strip()
             answer = instruction["output"].strip()
             
-            # Basic filtering
             if len(question.split()) <= 3 or len(question.split()) > 150:
                 return []
                 
@@ -308,7 +278,7 @@ class DatasetGenerator:
                 logger.info(f"Generated {total} instructions, kept {keep} instructions")
                 
             except Exception as e:
-                logger.error(f"추가 질문 생성 중 오류 발생: {e}")
+                logger.error(f"Error occurred while generating additional questions: {e}")
                 raise
                 
         return existing_instructions
@@ -320,7 +290,7 @@ class DatasetGenerator:
             packets = processor.process_pcap()
             
             if not packets:
-                logger.warning("PCAP 데이터가 비어있습니다.")
+                logger.warning("PCAP data is empty.")
                 return None
             
             all_instructions = []
@@ -333,7 +303,7 @@ class DatasetGenerator:
             # 초기 데이터셋 생성
             seed_instructions = processor.generate_dataset()
             if not seed_instructions:
-                logger.warning("생성된 데이터셋이 비어있습니다.")
+                logger.warning("Generated dataset is empty.")
                 return None
             
             # 추가 질문 생성
@@ -359,18 +329,18 @@ class DatasetGenerator:
                 })
             
             if not all_instructions:
-                logger.warning("생성된 데이터셋이 비어있습니다.")
+                logger.warning("Generated dataset is empty.")
                 return None
             
             # 파일 저장
             output_path = self._get_output_path("pcap_dataset")
             self._save_dataset(all_instructions, output_path)
             
-            logger.info(f"PCAP 데이터셋 생성 완료: {output_path}")
+            logger.info(f"PCAP dataset generation completed: {output_path}")
             return output_path
             
         except Exception as e:
-            logger.error(f"PCAP 데이터셋 생성 중 오류 발생: {e}")
+            logger.error(f"Error occurred while generating PCAP dataset: {e}")
             raise
     
     def generate_syslog_dataset(self, syslog_file):
@@ -382,7 +352,7 @@ class DatasetGenerator:
             # 초기 데이터셋 생성
             seed_instructions = processor.generate_dataset()
             if not seed_instructions:
-                logger.warning("생성된 Syslog 데이터셋이 비어있습니다.")
+                logger.warning("Generated Syslog dataset is empty.")
                 return None
             
             # 컨텍스트 데이터 준비
@@ -419,11 +389,11 @@ class DatasetGenerator:
             output_path = self._get_output_path("syslog_dataset")
             self._save_dataset(all_instructions, output_path)
             
-            logger.info(f"Syslog 데이터셋 생성 완료: {output_path}")
+            logger.info(f"Syslog dataset generation completed: {output_path}")
             return output_path
             
         except Exception as e:
-            logger.error(f"Syslog 데이터셋 생성 중 오류 발생: {e}")
+            logger.error(f"Error occurred while generating Syslog dataset: {e}")
             raise
     
     def _get_output_path(self, base_name):
@@ -435,19 +405,19 @@ class DatasetGenerator:
         try:
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(dataset, f, ensure_ascii=False, indent=2)
-            logger.info(f"데이터셋 저장 완료: {output_path}")
+            logger.info(f"Dataset saved successfully: {output_path}")
         except Exception as e:
-            logger.error(f"데이터셋 저장 중 오류 발생: {e}")
+            logger.error(f"Error occurred while saving dataset: {e}")
             raise
 
 def validate_input_file(file_path):
     if not Path(file_path).is_file():
-        raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
+        raise FileNotFoundError(f"File not found: {file_path}")
 
 def find_target_files(root_path):
     root = Path(root_path)
     if not root.exists():
-        raise FileNotFoundError(f"경로를 찾을 수 없습니다: {root_path}")
+        raise FileNotFoundError(f"Path not found: {root_path}")
         
     for file_path in root.rglob("*"):
         if file_path.is_file():
@@ -466,9 +436,6 @@ def main():
     
     args = parser.parse_args()
     
-    if not args.pcap_dir and not args.syslog_dir:
-        parser.error("최소한 하나의 입력 디렉토리(--pcap-dir 또는 --syslog-dir)를 지정해야 합니다.")
-    
     try:
         # Initialize dataset generator
         generator = DatasetGenerator(
@@ -484,38 +451,38 @@ def main():
         
         # PCAP 파일 처리
         if args.pcap_dir:
-            logger.info("PCAP 파일 처리 시작")
+            logger.info("Starting PCAP file processing")
             pcap_files = [f for f in find_target_files(args.pcap_dir)]
             if not pcap_files:
-                logger.warning(f"처리할 PCAP 파일을 찾을 수 없습니다: {args.pcap_dir}")
+                logger.warning(f"No PCAP files found to process: {args.pcap_dir}")
             else:
-                logger.info(f"총 {len(pcap_files)}개의 PCAP 파일을 찾았습니다.")
+                logger.info(f"Found {len(pcap_files)} PCAP files.")
                 for file_path in pcap_files:
                     try:
                         generator.generate_pcap_dataset(str(file_path))
                     except Exception as e:
-                        logger.error(f"PCAP 파일 처리 중 오류 발생 ({file_path}): {e}")
+                        logger.error(f"Error occurred while processing PCAP file ({file_path}): {e}")
                         continue
-                logger.info("모든 PCAP 파일 처리가 완료되었습니다.")
+                logger.info("All PCAP files processing completed.")
         
         # Syslog 파일 처리
         if args.syslog_dir:
-            logger.info("Syslog 파일 처리 시작")
+            logger.info("Starting Syslog file processing")
             syslog_files = [f for f in find_target_files(args.syslog_dir)]
             if not syslog_files:
-                logger.warning(f"처리할 Syslog 파일을 찾을 수 없습니다: {args.syslog_dir}")
+                logger.warning(f"No Syslog files found to process: {args.syslog_dir}")
             else:
-                logger.info(f"총 {len(syslog_files)}개의 Syslog 파일을 찾았습니다.")
+                logger.info(f"Found {len(syslog_files)} Syslog files.")
                 for file_path in syslog_files:
                     try:
                         generator.generate_syslog_dataset(str(file_path))
                     except Exception as e:
-                        logger.error(f"Syslog 파일 처리 중 오류 발생 ({file_path}): {e}")
+                        logger.error(f"Error occurred while processing Syslog file ({file_path}): {e}")
                         continue
-                logger.info("모든 Syslog 파일 처리가 완료되었습니다.")
+                logger.info("All Syslog files processing completed.")
         
     except Exception as e:
-        logger.error(f"데이터셋 생성 중 오류 발생: {e}")
+        logger.error(f"Error occurred while generating dataset: {e}")
         raise
 
 if __name__ == "__main__":
