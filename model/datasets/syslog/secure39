@@ -1,4 +1,0 @@
-May 26 10:13:30 moe-dev04 sshd[16110]: Accepted password for bigdata from 20.0.0.11 port 13693 ssh2
-May 26 10:13:30 moe-dev04 sshd[16110]: pam_unix(sshd:session): session opened for user bigdata by (uid=0)
-May 26 10:13:40 moe-dev04 sudo: bigdata : TTY=pts/0 ; PWD=/home/bigdata ; USER=root ; COMMAND=/bin/bash
-May 26 10:13:40 moe-dev04 sudo: pam_unix(sudo-i:session): session opened for user root by bigdata(uid=0)

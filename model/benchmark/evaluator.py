@@ -1,280 +1,154 @@
 import json
-from pathlib import Path
-import numpy as np
-from sklearn.metrics import precision_recall_fscore_support
 import logging
-from sentence_transformers import SentenceTransformer
-from tqdm import tqdm
+import time
+import psutil
+import numpy as np
+from pathlib import Path
+from rouge_score import rouge_scorer
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sentence_transformers import SentenceTransformer, util
 import matplotlib.pyplot as plt
 import seaborn as sns
-from datetime import datetime
 
 class BenchmarkEvaluator:
     def __init__(self, benchmark_path, batch_size=100):
-        self.benchmark_path = Path(benchmark_path)
         self.logger = logging.getLogger(__name__)
+        self.benchmark_path = Path(benchmark_path)
         self.batch_size = batch_size
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+        # 문장 유사도 계산을 위한 모델 로드
+        self.similarity_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
         
-    def load_benchmark(self):
-        """Load benchmark data from JSON file."""
         with open(self.benchmark_path, 'r') as f:
-            return json.load(f)
-            
-    def evaluate_accuracy(self, predictions, ground_truth):
-        """Evaluate prediction accuracy using semantic similarity."""
-        results = {
-            'total_questions': len(ground_truth),
-            'correct_answers': 0,
-            'incorrect_answers': 0,
-            'accuracy': 0.0,
-            'similarity_scores': []
-        }
+            self.benchmark_data = json.load(f)
+
+    def calculate_semantic_similarity(self, predictions, ground_truth):
+        """의미적 유사도 계산"""
+        pred_embeddings = self.similarity_model.encode(predictions, convert_to_tensor=True)
+        gt_embeddings = self.similarity_model.encode(ground_truth, convert_to_tensor=True)
         
-        # Batch processing for embeddings
-        for i in tqdm(range(0, len(predictions), self.batch_size), desc="Evaluating accuracy"):
-            batch_preds = predictions[i:i + self.batch_size]
-            batch_truth = ground_truth[i:i + self.batch_size]
-            
-            pred_embeddings = self.model.encode([p['answer'] for p in batch_preds])
-            truth_embeddings = self.model.encode([t['answer'] for t in batch_truth])
-            
-            for pred_emb, truth_emb in zip(pred_embeddings, truth_embeddings):
-                similarity = np.dot(pred_emb, truth_emb) / (
-                    np.linalg.norm(pred_emb) * np.linalg.norm(truth_emb)
-                )
-                results['similarity_scores'].append(similarity)
-                
-                if similarity > 0.8:  # Threshold for considering as correct
-                    results['correct_answers'] += 1
-                else:
-                    results['incorrect_answers'] += 1
-                
-        results['accuracy'] = results['correct_answers'] / results['total_questions']
-        results['average_similarity'] = np.mean(results['similarity_scores'])
-        return results
-        
-    def evaluate_complexity(self, predictions):
-        """Evaluate answer complexity and depth."""
-        complexity_scores = []
-        depth_scores = []
-        technical_terms = set([
-            'protocol', 'packet', 'session', 'anomaly', 'correlation',
-            'security', 'attack', 'vulnerability', 'exploit', 'malware'
-        ])
-        
-        for pred in tqdm(predictions, desc="Evaluating complexity"):
-            # Complexity: length, technical terms, and structure
-            answer = pred['answer'].lower()
-            complexity = len(answer.split())
-            technical_term_count = sum(1 for term in technical_terms if term in answer)
-            complexity_scores.append(complexity * (1 + 0.1 * technical_term_count))
-            
-            # Depth: number of analysis aspects and hierarchical structure
-            depth = len(answer.split('.'))
-            depth_scores.append(depth)
-            
+        # 코사인 유사도 계산
+        similarities = util.pytorch_cos_sim(pred_embeddings, gt_embeddings)
+        return similarities.diagonal().mean().item()
+
+    def calculate_accuracy_metrics(self, predictions, ground_truth):
+        """정확도 관련 메트릭 계산"""
         return {
-            'average_complexity': np.mean(complexity_scores),
-            'max_complexity': np.max(complexity_scores),
-            'average_depth': np.mean(depth_scores),
-            'max_depth': np.max(depth_scores),
-            'technical_term_usage': technical_term_count / len(predictions)
+            'accuracy': accuracy_score(ground_truth, predictions),
+            'precision': precision_score(ground_truth, predictions, average='weighted'),
+            'recall': recall_score(ground_truth, predictions, average='weighted'),
+            'f1_score': f1_score(ground_truth, predictions, average='weighted')
+        }
+
+    def calculate_rouge_scores(self, predictions, ground_truth):
+        """ROUGE 점수 계산"""
+        scores = {
+            'rouge1': [],
+            'rouge2': [],
+            'rougeL': []
         }
         
-    def evaluate_anomaly_detection(self, predictions, ground_truth):
-        """Evaluate anomaly detection performance."""
-        y_true = []
-        y_pred = []
-        confidence_scores = []
-        
-        for pred, truth in tqdm(zip(predictions, ground_truth), desc="Evaluating anomaly detection"):
-            if 'anomaly' in pred['question'].lower():
-                # Use semantic similarity for anomaly detection
-                pred_emb = self.model.encode(pred['answer'])
-                truth_emb = self.model.encode(truth['answer'])
-                similarity = np.dot(pred_emb, truth_emb) / (
-                    np.linalg.norm(pred_emb) * np.linalg.norm(truth_emb)
-                )
-                
-                y_true.append(1 if 'detected' in truth['answer'].lower() else 0)
-                y_pred.append(1 if similarity > 0.8 else 0)
-                confidence_scores.append(similarity)
-                
-        if not y_true:  # No anomaly questions
-            return {
-                'precision': 0.0,
-                'recall': 0.0,
-                'f1_score': 0.0,
-                'average_confidence': 0.0
-            }
+        for pred, gt in zip(predictions, ground_truth):
+            score = self.scorer.score(pred, gt)
+            scores['rouge1'].append(score['rouge1'].fmeasure)
+            scores['rouge2'].append(score['rouge2'].fmeasure)
+            scores['rougeL'].append(score['rougeL'].fmeasure)
             
-        precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average='binary')
-        return {
-            'precision': precision,
-            'recall': recall,
-            'f1_score': f1,
-            'average_confidence': np.mean(confidence_scores)
-        }
+        return {k: np.mean(v) for k, v in scores.items()}
+
+    def calculate_hallucination_rate(self, predictions, ground_truth):
+        """환각률 계산 (의미적 유사도 기반)"""
+        similarities = []
+        for pred, gt in zip(predictions, ground_truth):
+            pred_emb = self.similarity_model.encode(pred, convert_to_tensor=True)
+            gt_emb = self.similarity_model.encode(gt, convert_to_tensor=True)
+            similarity = util.pytorch_cos_sim(pred_emb, gt_emb).item()
+            similarities.append(similarity)
         
-    def evaluate_pattern_recognition(self, predictions, ground_truth):
-        """Evaluate pattern recognition capabilities."""
-        pattern_scores = []
-        pattern_details = []
-        
-        for pred, truth in tqdm(zip(predictions, ground_truth), desc="Evaluating pattern recognition"):
-            if 'pattern' in pred['question'].lower():
-                pred_patterns = self._extract_patterns(pred['answer'])
-                truth_patterns = self._extract_patterns(truth['answer'])
-                
-                if truth_patterns:
-                    # Calculate semantic similarity for patterns
-                    pred_emb = self.model.encode(pred_patterns)
-                    truth_emb = self.model.encode(truth_patterns)
-                    similarities = np.dot(pred_emb, truth_emb.T)
-                    score = np.mean(np.max(similarities, axis=1))
-                    pattern_scores.append(score)
-                    
-                    pattern_details.append({
-                        'predicted': pred_patterns,
-                        'ground_truth': truth_patterns,
-                        'similarity': score
-                    })
-                    
-        return {
-            'average_pattern_score': np.mean(pattern_scores) if pattern_scores else 0.0,
-            'pattern_recognition_rate': len(pattern_scores) / len(predictions),
-            'pattern_details': pattern_details
-        }
-        
-    def evaluate_correlation_analysis(self, predictions, ground_truth):
-        """Evaluate correlation analysis capabilities."""
-        correlation_scores = []
-        correlation_details = []
-        
-        for pred, truth in tqdm(zip(predictions, ground_truth), desc="Evaluating correlation analysis"):
-            if 'correlation' in pred['question'].lower():
-                pred_correlations = self._extract_correlations(pred['answer'])
-                truth_correlations = self._extract_correlations(truth['answer'])
-                
-                if truth_correlations:
-                    # Calculate semantic similarity for correlations
-                    pred_emb = self.model.encode(pred_correlations)
-                    truth_emb = self.model.encode(truth_correlations)
-                    similarities = np.dot(pred_emb, truth_emb.T)
-                    score = np.mean(np.max(similarities, axis=1))
-                    correlation_scores.append(score)
-                    
-                    correlation_details.append({
-                        'predicted': pred_correlations,
-                        'ground_truth': truth_correlations,
-                        'similarity': score
-                    })
-                    
-        return {
-            'average_correlation_score': np.mean(correlation_scores) if correlation_scores else 0.0,
-            'correlation_analysis_rate': len(correlation_scores) / len(predictions),
-            'correlation_details': correlation_details
-        }
-        
-    def _extract_patterns(self, answer):
-        """Extract patterns from answer text."""
-        patterns = []
-        for line in answer.split('.'):
-            if any(term in line.lower() for term in ['pattern', 'trend', 'sequence', 'recurring']):
-                patterns.append(line.strip())
-        return patterns
-        
-    def _extract_correlations(self, answer):
-        """Extract correlations from answer text."""
-        correlations = []
-        for line in answer.split('.'):
-            if any(term in line.lower() for term in ['correlation', 'relationship', 'connection', 'association']):
-                correlations.append(line.strip())
-        return correlations
-        
+        # 유사도가 0.5 미만인 경우를 환각으로 간주
+        hallucination_rate = sum(1 for s in similarities if s < 0.5) / len(similarities)
+        return hallucination_rate
+
     def run_evaluation(self, predictions):
-        """Run complete evaluation."""
-        ground_truth = self.load_benchmark()
-        
+        """벤치마크 평가 실행"""
+        start_time = time.time()
+        process = psutil.Process()
+        start_memory = process.memory_info().rss / 1024 / 1024  # MB
+
+        ground_truth = [item['expected_output'] for item in self.benchmark_data]
+        pred_outputs = [pred['output'] for pred in predictions]
+
+        # 기본 메트릭 계산
+        accuracy_metrics = self.calculate_accuracy_metrics(pred_outputs, ground_truth)
+        rouge_scores = self.calculate_rouge_scores(pred_outputs, ground_truth)
+        semantic_similarity = self.calculate_semantic_similarity(pred_outputs, ground_truth)
+        hallucination_rate = self.calculate_hallucination_rate(pred_outputs, ground_truth)
+
         results = {
-            'timestamp': datetime.now().isoformat(),
-            'accuracy': self.evaluate_accuracy(predictions, ground_truth),
-            'complexity': self.evaluate_complexity(predictions),
-            'anomaly_detection': self.evaluate_anomaly_detection(predictions, ground_truth),
-            'pattern_recognition': self.evaluate_pattern_recognition(predictions, ground_truth),
-            'correlation_analysis': self.evaluate_correlation_analysis(predictions, ground_truth)
+            'accuracy_metrics': accuracy_metrics,
+            'rouge_scores': rouge_scores,
+            'semantic_similarity': semantic_similarity,
+            'hallucination_rate': hallucination_rate,
+            'resource_metrics': {
+                'execution_time_ms': (time.time() - start_time) * 1000,
+                'memory_usage_mb': process.memory_info().rss / 1024 / 1024 - start_memory
+            }
         }
-        
-        # Calculate overall score with dynamic weights
-        weights = {
-            'accuracy': 0.3,
-            'complexity': 0.2,
-            'anomaly_detection': 0.2,
-            'pattern_recognition': 0.15,
-            'correlation_analysis': 0.15
-        }
-        
-        overall_score = (
-            results['accuracy']['accuracy'] * weights['accuracy'] +
-            (results['complexity']['average_complexity'] / 100) * weights['complexity'] +
-            results['anomaly_detection']['f1_score'] * weights['anomaly_detection'] +
-            results['pattern_recognition']['average_pattern_score'] * weights['pattern_recognition'] +
-            results['correlation_analysis']['average_correlation_score'] * weights['correlation_analysis']
-        )
-        
-        results['overall_score'] = overall_score
+
         return results
-        
+
     def visualize_results(self, results, output_dir):
-        """Visualize evaluation results."""
+        """결과 시각화"""
+        output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. 정확도 메트릭 시각화
+        plt.figure(figsize=(10, 6))
+        accuracy_metrics = results['accuracy_metrics']
+        metrics = list(accuracy_metrics.keys())
+        values = list(accuracy_metrics.values())
         
-        # 1. Overall Performance Metrics
-        plt.figure(figsize=(12, 6))
-        metrics = ['accuracy', 'complexity', 'anomaly_detection', 'pattern_recognition', 'correlation_analysis']
-        scores = [
-            results['accuracy']['accuracy'],
-            results['complexity']['average_complexity'] / 100,
-            results['anomaly_detection']['f1_score'],
-            results['pattern_recognition']['average_pattern_score'],
-            results['correlation_analysis']['average_correlation_score']
-        ]
-        
-        plt.bar(metrics, scores)
-        plt.title('Model Performance Metrics')
+        sns.barplot(x=metrics, y=values)
+        plt.title('Accuracy Metrics')
         plt.xticks(rotation=45)
         plt.tight_layout()
-        plt.savefig(output_dir / 'performance_metrics.png')
+        plt.savefig(output_dir / 'accuracy_metrics.png')
         plt.close()
-        
-        # 2. Similarity Score Distribution
+
+        # 2. ROUGE 점수 시각화
         plt.figure(figsize=(10, 6))
-        sns.histplot(results['accuracy']['similarity_scores'], bins=20)
-        plt.title('Answer Similarity Score Distribution')
-        plt.xlabel('Similarity Score')
-        plt.ylabel('Count')
-        plt.savefig(output_dir / 'similarity_distribution.png')
+        rouge_scores = results['rouge_scores']
+        metrics = list(rouge_scores.keys())
+        values = list(rouge_scores.values())
+        
+        sns.barplot(x=metrics, y=values)
+        plt.title('ROUGE Scores')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.savefig(output_dir / 'rouge_scores.png')
         plt.close()
+
+        # 3. 의미적 유사도와 환각률 시각화
+        plt.figure(figsize=(8, 6))
+        metrics = ['Semantic Similarity', 'Hallucination Rate']
+        values = [results['semantic_similarity'], results['hallucination_rate']]
         
-        # 3. Pattern Recognition Details
-        if results['pattern_recognition']['pattern_details']:
-            plt.figure(figsize=(10, 6))
-            similarities = [d['similarity'] for d in results['pattern_recognition']['pattern_details']]
-            sns.histplot(similarities, bins=20)
-            plt.title('Pattern Recognition Similarity Distribution')
-            plt.xlabel('Similarity Score')
-            plt.ylabel('Count')
-            plt.savefig(output_dir / 'pattern_similarity.png')
-            plt.close()
+        sns.barplot(x=metrics, y=values)
+        plt.title('Semantic Analysis')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.savefig(output_dir / 'semantic_analysis.png')
+        plt.close()
+
+        # 4. 리소스 사용량 시각화
+        plt.figure(figsize=(8, 6))
+        resource_metrics = results['resource_metrics']
+        metrics = list(resource_metrics.keys())
+        values = list(resource_metrics.values())
         
-        # 4. Correlation Analysis Details
-        if results['correlation_analysis']['correlation_details']:
-            plt.figure(figsize=(10, 6))
-            similarities = [d['similarity'] for d in results['correlation_analysis']['correlation_details']]
-            sns.histplot(similarities, bins=20)
-            plt.title('Correlation Analysis Similarity Distribution')
-            plt.xlabel('Similarity Score')
-            plt.ylabel('Count')
-            plt.savefig(output_dir / 'correlation_similarity.png')
-            plt.close() 
+        sns.barplot(x=metrics, y=values)
+        plt.title('Resource Usage')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.savefig(output_dir / 'resource_usage.png')
+        plt.close() 
