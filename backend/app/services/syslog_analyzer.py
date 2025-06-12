@@ -65,7 +65,6 @@ class SyslogAnalyzer:
             return None
     
     def _extract_severity(self, message: str) -> str:
-        """메시지에서 심각도 레벨 추출"""
         severity_keywords = {
             'emerg': 'emergency',
             'alert': 'alert',

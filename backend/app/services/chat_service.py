@@ -13,7 +13,6 @@ class ChatService:
         self.load_model(model_name)
     
     def load_model(self, model_name: str):
-        """모델과 토크나이저를 로드합니다."""
         try:
             logger.info(f"Loading model: {model_name}")
             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -25,7 +24,6 @@ class ChatService:
             raise
 
     async def generate_response(self, message: str, model: str) -> Dict[str, str]:
-        """사용자 메시지에 대한 응답을 생성합니다."""
         try:
             if not self.model or not self.tokenizer:
                 raise Exception("Model not loaded")
@@ -45,6 +43,25 @@ class ChatService:
             # 생성된 텍스트 디코딩
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             
+            return {"response": response}
+        except Exception as e:
+            logger.error(f"Error generating response: {str(e)}")
+            raise
+
+    def generate_response_sync(self, message: str, model: str) -> Dict[str, str]:
+        try:
+            if not self.model or not self.tokenizer:
+                raise Exception("Model not loaded")
+
+            inputs = self.tokenizer(message, return_tensors="pt")
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    inputs["input_ids"],
+                    max_length=100,
+                    num_return_sequences=1,
+                    pad_token_id=self.tokenizer.eos_token_id
+                )
+            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             return {"response": response}
         except Exception as e:
             logger.error(f"Error generating response: {str(e)}")

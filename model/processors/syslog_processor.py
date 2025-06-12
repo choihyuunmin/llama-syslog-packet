@@ -12,13 +12,6 @@ logger = logging.getLogger(__name__)
 
 class DrainLogParser:
     def __init__(self, depth: int = 4, max_children: int = 100, similarity_threshold: float = 0.5):
-        """Drain 파서 초기화.
-        
-        Args:
-            depth (int): 트리의 최대 깊이
-            max_children (int): 노드당 최대 자식 수
-            similarity_threshold (float): 템플릿 매칭을 위한 유사도 임계값
-        """
         self.depth = depth
         self.max_children = max_children
         self.similarity_threshold = similarity_threshold
@@ -34,34 +27,17 @@ class DrainLogParser:
         }
     
     def _get_log_tokens(self, log_line: str) -> List[str]:
-        """로그 라인을 토큰으로 분리.
-        
-        Args:
-            log_line (str): 원본 로그 라인
-            
-        Returns:
-            List[str]: 토큰화된 로그 라인
-        """
+
         # 공백으로 분리하고 특수문자 처리
         tokens = re.split(r'[\s=:,]', log_line)
         return [t for t in tokens if t]
     
     def _get_token_length(self, token: str) -> int:
-        """토큰의 길이를 반환. 숫자는 0으로 처리."""
         if token.isdigit():
             return 0
         return len(token)
     
     def _calculate_similarity(self, template: str, log_line: str) -> float:
-        """두 로그 라인 간의 유사도 계산.
-        
-        Args:
-            template (str): 템플릿 로그 라인
-            log_line (str): 비교할 로그 라인
-            
-        Returns:
-            float: 유사도 점수 (0-1)
-        """
         template_tokens = self._get_log_tokens(template)
         log_tokens = self._get_log_tokens(log_line)
         
@@ -72,18 +48,9 @@ class DrainLogParser:
         return matches / len(template_tokens)
     
     def _get_template_id(self, template):
-        """템플릿의 고유 ID 생성."""
         return hashlib.md5(template.encode()).hexdigest()
     
     def parse(self, log_line):
-        """로그 라인을 파싱하여 템플릿과 파라미터를 추출.
-        
-        Args:
-            log_line (str): 파싱할 로그 라인
-            
-        Returns:
-            Tuple[str, str]: (템플릿 ID, 파라미터화된 로그 라인)
-        """
         tokens = self._get_log_tokens(log_line)
         current_node = self.root
         
@@ -143,17 +110,11 @@ class DrainLogParser:
 
 class SyslogProcessor:
     def __init__(self, syslog_file: str):
-        """Initialize SyslogProcessor.
-        
-        Args:
-            syslog_file (str): Path to the syslog file
-        """
         self.syslog_file = Path(syslog_file)
         self.logs: List[Dict] = []
         self.df: pd.DataFrame = pd.DataFrame()
         
     def process_logs(self) -> None:
-        """Process syslog file and convert to structured format."""
         try:
             parsed_logs = []
             
@@ -188,14 +149,6 @@ class SyslogProcessor:
             raise
     
     def _parse_log_line(self, line: str) -> Dict[str, Any]:
-        """Parse a single syslog line into structured format.
-        
-        Args:
-            line (str): Raw syslog line
-            
-        Returns:
-            Dict[str, Any]: Structured log entry
-        """
         try:
             # Common syslog format pattern
             pattern = r'(\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+(\S+)\s+(\S+):\s+(.*)'
@@ -224,7 +177,6 @@ class SyslogProcessor:
             return None
     
     def _get_severity(self, message: str) -> str:
-        """Determine log severity based on message content."""
         severity_patterns = {
             'critical': r'crit|fatal|emerg|panic',
             'error': r'error|err|fail',
@@ -239,7 +191,6 @@ class SyslogProcessor:
         return 'info'
     
     def _get_category(self, message: str) -> str:
-        """Categorize log message based on content."""
         categories = {
             'auth': r'auth|login|user|sudo|su\b|ssh|password|credential',
             'security': r'secur|firewall|iptables|attack|hack|malicious|threat|violation|deny',
@@ -254,11 +205,6 @@ class SyslogProcessor:
         return 'other'
     
     def generate_dataset(self) -> List[Dict[str, str]]:
-        """Generate Q&A dataset from processed logs.
-        
-        Returns:
-            List[Dict[str, str]]: List of question-answer pairs
-        """
         if self.df.empty:
             logger.warning("No logs processed yet. Call process_logs() first.")
             return []
@@ -368,7 +314,6 @@ class SyslogProcessor:
         return result
     
     def _get_auth_events_count(self) -> str:
-        """인증 관련 이벤트 수를 계산합니다."""
         if self.df.empty:
             return "No logs available for authentication events analysis."
         
@@ -382,7 +327,6 @@ class SyslogProcessor:
         return f"Authentication events summary:\n- Total: {len(auth_events)} events\n- Successful: {success_count}\n- Failed: {failure_count}"
     
     def _analyze_auth_failures(self) -> str:
-        """인증 실패 패턴을 분석합니다."""
         if self.df.empty:
             return "No logs available for authentication failure analysis."
         
@@ -487,7 +431,6 @@ class SyslogProcessor:
             """
 
     def _analyze_critical_security_events(self) -> str:
-        """중요한 보안 이벤트를 분석하고 잠재적 영향을 평가합니다."""
         if self.df.empty:
             return "No logs available for critical security events analysis."
         

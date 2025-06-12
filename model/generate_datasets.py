@@ -5,12 +5,10 @@ import json
 import logging
 import os
 import random
-import re
 import string
 import sys
 import time
 from datetime import datetime
-from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 

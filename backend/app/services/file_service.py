@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Dict, Any
-from ..core.utils import analyze_pcap, analyze_log, get_file_type
+from core.utils import analyze_pcap, analyze_log, get_file_type
 
 class FileService:
     def __init__(self, upload_dir: Path):
