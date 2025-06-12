@@ -30,10 +30,14 @@ LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "dow
 def prepare_dataset(dataset_name, tokenizer, max_seq_len):
     def generate_and_tokenize_prompt(examples):
         prompts = []
-        for instruction, output in zip(examples['instruction'], examples['output']):
+        for instruction, input_text, output in zip(examples['instruction'], examples['input'], examples['output']):
             prompt = f"""Below is an instruction that describes a task, paired with an output that provides the completion of the task.
             ### Instruction:
             {instruction}
+
+            ### Context:
+            {input_text}
+
             ### Response:
             {output}"""
             prompts.append(prompt)
@@ -84,12 +88,6 @@ def check_huggingface_token():
         login()
     return token
 
-def find_latest_checkpoint(output_dir):
-    checkpoints = glob.glob(os.path.join(output_dir, "batch_*"))
-    if not checkpoints:
-        return None
-    return max(checkpoints, key=lambda x: int(x.split('_')[-1]))
-
 class FineTuner:
     def __init__(self, model_name, dataset_name, output_dir, max_seq_len=128):
         self.model_name = model_name
@@ -98,7 +96,6 @@ class FineTuner:
         self.max_seq_len = max_seq_len
         self.tokenizer = None
         self.model = None
-        self.latest_checkpoint = find_latest_checkpoint(output_dir)
 
     def load_model_and_tokenizer(self):
         logger.info("##2. Loading tokenizer")
@@ -115,34 +112,17 @@ class FineTuner:
             bnb_4bit_compute_dtype=torch.float16
         )
 
-        logger.info("##4. Loading checkpoint")
+        self.model = AutoModelForCausalLM.from_pretrained(
+            self.model_name,
+            torch_dtype=torch.float16,
+            device_map="auto",
+            quantization_config=bnb_config
+        )
 
-        if self.latest_checkpoint:
-            try:
-                config = AutoConfig.from_pretrained(self.model_name)
-                checkpoint_config = AutoConfig.from_pretrained(self.latest_checkpoint)
-                checkpoint_config.model_type = config.model_type
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    self.latest_checkpoint,
-                    config=checkpoint_config,
-                    torch_dtype=torch.float16,
-                    device_map="auto",
-                    quantization_config=bnb_config
-                )
-            except:
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    self.model_name,
-                    torch_dtype=torch.float16,
-                    device_map="auto",
-                    quantization_config=bnb_config
-                )
-        else:
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                torch_dtype=torch.float16,
-                device_map="auto",
-                quantization_config=bnb_config
-            )
+        self.config = AutoConfig.from_pretrained(
+            "meta-llama/Llama-3.2-3B",
+            trust_remote_code=True
+        )
 
         logger.info("##5. Setting use_cache to False")
 
@@ -170,31 +150,6 @@ class FineTuner:
         logger.info("##8. Dataset loaded")
         return train_data, val_data
 
-    def setup_training_args(self, args, batch_start_idx):
-        return TrainingArguments(
-            output_dir=os.path.join(args.output_dir, f"batch_{batch_start_idx}"),
-            per_device_train_batch_size=args.batch_size,
-            gradient_accumulation_steps=args.gradient_accumulation_steps,
-            optim=args.optim,
-            logging_steps=args.logging_steps,
-            learning_rate=args.learning_rate,
-            fp16=True,
-            max_grad_norm=args.max_grad_norm,
-            max_steps=args.max_steps,
-            warmup_ratio=args.warmup_ratio,
-            num_train_epochs=args.num_train_epochs,
-            lr_scheduler_type=args.lr_scheduler_type,
-            group_by_length=False,
-            gradient_checkpointing=True,
-            dataloader_num_workers=2,
-            dataloader_pin_memory=True,
-            torch_compile=False,
-            report_to="none",
-            load_best_model_at_end=False,
-            save_total_limit=2,
-            push_to_hub=True
-        )
-
     def train(self, args):
         check_huggingface_token()
         logger.info("##1-1. Checking huggingface token")
@@ -204,7 +159,7 @@ class FineTuner:
         logger.info("##9. Training")
 
         training_args = TrainingArguments(
-            output_dir=os.path.join(args.output_dir, f"batch_0"),
+            output_dir=os.path.join(args.output_dir, args.hf_model_name),
             per_device_train_batch_size=args.batch_size,
             gradient_accumulation_steps=args.gradient_accumulation_steps,
             optim=args.optim,
@@ -223,7 +178,9 @@ class FineTuner:
             torch_compile=False,
             report_to="none",
             load_best_model_at_end=False,
-            save_total_limit=2
+            save_total_limit=2,
+            push_to_hub=True,
+            label_names=["labels"],
         )
 
         data_collator = DataCollatorForSeq2Seq(
@@ -244,12 +201,33 @@ class FineTuner:
         trainer.train()
         torch.cuda.empty_cache()
 
+        self.model.push_to_hub(
+            args.hf_model_name,
+            use_temp_dir=True,
+            token=HfFolder.get_token()
+        )
+        self.tokenizer.push_to_hub(
+            args.hf_model_name,
+            use_temp_dir=True,
+            token=HfFolder.get_token()
+        )
+        # config 파일도 업로드
+        self.config.push_to_hub(
+            args.hf_model_name,
+            use_temp_dir=True,
+            token=HfFolder.get_token()
+        )
+        logger.info(f"Model uploaded successfully to {args.hf_model_name}")
+
+        self.model.save_pretrained(os.path.join(args.output_dir, args.hf_model_name))
+        self.config.save_pretrained(os.path.join(args.output_dir, args.hf_model_name))
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset-name', type=str, required=True)
-    parser.add_argument('--model-name', type=str, default="meta-llama/Meta-Llama-3-8B-Instruct")
+    parser.add_argument('--model-name', type=str, default="choihyuunmin/LlamaTrace")
     parser.add_argument('--output-dir', type=str, required=True)
-    parser.add_argument('--hf-model-name', type=str, required=True, help="Hugging Face model name to upload to (e.g., 'username/model-name')")
+    parser.add_argument('--hf-model-name', type=str, required=True, help="Hugging Face model name to upload")
     parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument('--gradient-accumulation-steps', type=int, default=32)
     parser.add_argument('--optim', type=str, default="adamw_torch")
