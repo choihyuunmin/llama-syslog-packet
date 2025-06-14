@@ -41,76 +41,43 @@ def openai_completion(
     prompts,
     decoding_args,
     model_name,
-    sleep_time=2,
-    batch_size=1,
-    max_instances=sys.maxsize,
-    max_batches=sys.maxsize,
     return_text=False,
-    **decoding_kwargs,
 ):
     is_single_prompt = isinstance(prompts, (str, dict))
     if is_single_prompt:
         prompts = [prompts]
 
-    if max_batches < sys.maxsize:
-        logging.warning(
-            "`max_batches` will be deprecated in the future, please use `max_instances` instead."
-            "Setting `max_instances` to `max_batches * batch_size` for now."
-        )
-        max_instances = max_batches * batch_size
-
-    prompts = prompts[:max_instances]
-    num_prompts = len(prompts)
-    prompt_batches = [
-        prompts[batch_id * batch_size : (batch_id + 1) * batch_size]
-        for batch_id in range(int(np.ceil(num_prompts / batch_size)))
-    ]
-
     client = OpenAI()
     completions = []
-    for prompt_batch in prompt_batches:
-        batch_decoding_args = copy.deepcopy(decoding_args)
 
-        while True:
-            try:
-                shared_kwargs = {
-                    "model": model_name,
-                    "max_tokens": batch_decoding_args.max_tokens,
-                    "temperature": batch_decoding_args.temperature,
-                    "top_p": batch_decoding_args.top_p,
-                    "n": batch_decoding_args.n,
-                    "stream": batch_decoding_args.stream,
-                    "stop": batch_decoding_args.stop,
-                    "presence_penalty": batch_decoding_args.presence_penalty,
-                    "frequency_penalty": batch_decoding_args.frequency_penalty,
-                }
-                
-                # Convert prompts to messages format for chat completion
-                messages = [{"role": "user", "content": prompt} for prompt in prompt_batch]
-                
-                completion_batch = client.chat.completions.create(
-                    messages=messages,
-                    **shared_kwargs
-                )
-                
-                choices = []
-                for choice in completion_batch.choices:
-                    choices.append({
-                        "text": choice.message.content,
-                        "finish_reason": choice.finish_reason,
-                        "total_tokens": completion_batch.usage.total_tokens
-                    })
-                
-                completions.extend(choices)
-                break
-            except Exception as e:
-                logging.warning(f"OpenAIError: {e}.")
-                if "Please reduce your prompt" in str(e):
-                    batch_decoding_args.max_tokens = int(batch_decoding_args.max_tokens * 0.8)
-                    logging.warning(f"Reducing target length to {batch_decoding_args.max_tokens}, Retrying...")
-                else:
-                    logging.warning("Hit request rate limit; retrying...")
-                    time.sleep(sleep_time)
+    for prompt in prompts:
+
+        shared_kwargs = {
+            "model": model_name,
+            "max_tokens": decoding_args.max_tokens,
+            "temperature": decoding_args.temperature,
+            "top_p": decoding_args.top_p,
+            "n": decoding_args.n,
+            "stream": decoding_args.stream,
+            "stop": decoding_args.stop,
+            "presence_penalty": decoding_args.presence_penalty,
+            "frequency_penalty": decoding_args.frequency_penalty,
+        }
+        messages = [{"role": "user", "content": prompt}]                
+        completion_batch = client.chat.completions.create(
+            messages=messages,
+            **shared_kwargs
+        )
+        
+        choices = []
+        for choice in completion_batch.choices:
+            choices.append({
+                "text": choice.message.content,
+                "finish_reason": choice.finish_reason,
+                "total_tokens": completion_batch.usage.total_tokens
+            })
+        
+        completions.extend(choices)
 
     if return_text:
         completions = [completion["text"] for completion in completions]
@@ -125,27 +92,23 @@ class DatasetGenerator:
         self,
         output_dir="processed",
         model_name="gpt-4o-mini",
-        num_instructions_to_generate=100,
+        num_instructions_to_generate=10,
         num_prompt_instructions=3,
-        request_batch_size=2,
         temperature=1.0,
         top_p=1.0,
-        num_cpus=16,
     ):
         self.output_dir = Path(output_dir)
         self.model_name = model_name
         self.num_instructions_to_generate = num_instructions_to_generate
         self.num_prompt_instructions = num_prompt_instructions
-        self.request_batch_size = request_batch_size
         self.temperature = temperature
         self.top_p = top_p
-        self.num_cpus = num_cpus
         
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
         
     def encode_prompt(self, prompt_instructions, context_data=None):
-        prompt = """You are a network security expert. Generate question-answer pairs about network packet and system log analysis.
+        prompt = """You are a network security expert. Generate question-answer pairs about network packet or system log analysis.
                     Each response should be in the following JSON format:
                     {
                         "instruction": "your question here",
@@ -153,6 +116,9 @@ class DatasetGenerator:
                         "output": "your answer here"
                     }
 
+                    Important: You must use the provided input data to generate relevant questions and answers.
+                    The input field in your response should contain the actual data you used from the provided context.
+                    Your questions should be specific to the patterns, anomalies, or security events visible in the input data.
                 """
         
         if context_data:
@@ -160,7 +126,7 @@ class DatasetGenerator:
                 sample_data = context_data["pcap_data"]
             
             if "syslog_data" in context_data:
-                sample_data = context_data["syslog_data"][:5]
+                sample_data = context_data["syslog_data"]
         
         prompt += "\nHere are some examples of question-answer pairs:\n\n"
         
@@ -170,10 +136,16 @@ class DatasetGenerator:
             
             prompt += f"Example {idx + 1}:\n"
             prompt += f"Instruction: {question}\n"
-            prompt += f"Input: {sample_data[:5]}\n"
+            prompt += f"Input: {sample_data}\n"
             prompt += f"Output: {answer}\n\n"
             
-        prompt += "Now generate a new question-answer pair in the same JSON format based on the provided data:\n"
+        prompt += """Now generate a new question-answer pair in the same JSON format based on the provided data.
+                    Remember to:
+                    1. Use the actual input data in your response
+                    2. Create questions that are specifically relevant to the patterns or events in the input data
+                    3. Provide detailed answers that reference specific elements from the input data
+                    4. Ensure your response follows the exact JSON format shown above
+                """
         return prompt
     
     def post_process_gpt3_response(self, response):
@@ -196,9 +168,10 @@ class DatasetGenerator:
                 return []
                 
             question = instruction["instruction"].strip()
+            input_data = instruction["input"].strip()
             answer = instruction["output"].strip()
             
-            if len(question.split()) <= 3 or len(question.split()) > 150:
+            if len(question.split()) <= 3 or len(question.split()) > 100:
                 return []
                 
             if question[0] in string.punctuation or not question[0].isascii():
@@ -206,7 +179,7 @@ class DatasetGenerator:
                 
             return [{
                 "instruction": question,
-                "input": "",
+                "input": input_data,
                 "output": answer
             }]
             
@@ -217,7 +190,7 @@ class DatasetGenerator:
     def generate_additional_instructions(
         self,
         seed_instructions,
-        context_data=None,
+        context_data,
         existing_instructions=None
     ):
         if existing_instructions is None:
@@ -251,7 +224,6 @@ class DatasetGenerator:
                 results = openai_completion(
                     prompts=batch_inputs,
                     model_name=self.model_name,
-                    batch_size=self.request_batch_size,
                     decoding_args=decoding_args
                 )
                 
@@ -285,27 +257,25 @@ class DatasetGenerator:
     
     def generate_pcap_dataset(self, pcap_file):
         try:            
-            # PCAP 프로세서 초기화 및 처리
+            # initialize and process PCAP processor
             processor = PcapProcessor(pcap_file)
             packets = processor.process_pcap()
             
-            if not packets:
-                logger.warning("PCAP data is empty.")
-                return None
-            
             all_instructions = []
             
-            # 컨텍스트 데이터 준비
             context_data = {
                 "pcap_data": str(packets)
             }
             
-            # 초기 데이터셋 생성
             seed_instructions = processor.generate_dataset()
+
             if not seed_instructions:
                 logger.warning("Generated dataset is empty.")
                 return None
             
+            if len(seed_instructions[0]["input"]) < 3:
+                return None
+
             # 추가 질문 생성
             new_instructions = self.generate_additional_instructions(
                 seed_instructions,
@@ -355,6 +325,10 @@ class DatasetGenerator:
                 logger.warning("Generated Syslog dataset is empty.")
                 return None
             
+            if len(seed_instructions[0]["input"]) < 3:
+                logger.warning("Generated Syslog dataset is empty.")
+                return None
+
             # 컨텍스트 데이터 준비
             context_data = {
                 "syslog_data": str(syslog_data) if syslog_data is not None else "No Syslog data available"
@@ -424,15 +398,15 @@ def find_target_files(root_path):
             yield file_path
 
 def main():
-    parser = argparse.ArgumentParser(description="packet/syslog 데이터셋 생성기")
-    parser.add_argument("--pcap-dir", type=str, help="PCAP 파일이 있는 디렉토리 경로")
-    parser.add_argument("--syslog-dir", type=str, help="Syslog 파일이 있는 디렉토리 경로")
-    parser.add_argument("--output-dir", type=str, default="processed", help="출력 디렉토리")
-    parser.add_argument("--model-name", type=str, default="gpt-4o-mini", help="사용할 GPT 모델 이름")
-    parser.add_argument("--num-instructions", type=int, default=100, help="생성할 추가 질문 수")
-    parser.add_argument("--num-prompt-instructions", type=int, default=3, help="프롬프트에 사용할 예시 질문 수")
-    parser.add_argument("--request-batch-size", type=int, default=2, help="한 번에 처리할 요청 수")
-    parser.add_argument("--temperature", type=float, default=1.0, help="생성 다양성 조절")
+    parser = argparse.ArgumentParser(description="packet/syslog dataset generator")
+    parser.add_argument("--pcap-dir", type=str, help="directory containing PCAP files")
+    parser.add_argument("--syslog-dir", type=str, help="directory containing Syslog files")
+    parser.add_argument("--output-dir", type=str, default="processed")
+    parser.add_argument("--model-name", type=str, default="gpt-4o-mini")
+    parser.add_argument("--num-instructions", type=int, default=100)
+    parser.add_argument("--num-prompt-instructions", type=int, default=3)
+    parser.add_argument("--request-batch-size", type=int, default=2)
+    parser.add_argument("--temperature", type=float, default=0.2)
     
     args = parser.parse_args()
     
@@ -443,47 +417,49 @@ def main():
             model_name=args.model_name,
             num_instructions_to_generate=args.num_instructions,
             num_prompt_instructions=args.num_prompt_instructions,
-            request_batch_size=args.request_batch_size,
             temperature=args.temperature,
             top_p=1.0,
-            num_cpus=16
         )
         
-        # PCAP 파일 처리
+        # 모든 파일 경로 수집
+        all_files = []
+        
+        # PCAP 파일 수집
         if args.pcap_dir:
-            logger.info("Starting PCAP file processing")
             pcap_files = [f for f in find_target_files(args.pcap_dir)]
             if not pcap_files:
                 logger.warning(f"No PCAP files found to process: {args.pcap_dir}")
             else:
                 logger.info(f"Found {len(pcap_files)} PCAP files.")
-                for file_path in pcap_files:
-                    try:
-                        generator.generate_pcap_dataset(str(file_path))
-                    except Exception as e:
-                        logger.error(f"Error occurred while processing PCAP file ({file_path}): {e}")
-                        continue
-                logger.info("All PCAP files processing completed.")
+                all_files.extend([("pcap", str(f)) for f in pcap_files])
         
-        # Syslog 파일 처리
+        # Syslog 파일 수집
         if args.syslog_dir:
-            logger.info("Starting Syslog file processing")
             syslog_files = [f for f in find_target_files(args.syslog_dir)]
             if not syslog_files:
                 logger.warning(f"No Syslog files found to process: {args.syslog_dir}")
             else:
                 logger.info(f"Found {len(syslog_files)} Syslog files.")
-                for file_path in syslog_files:
-                    try:
-                        generator.generate_syslog_dataset(str(file_path))
-                    except Exception as e:
-                        logger.error(f"Error occurred while processing Syslog file ({file_path}): {e}")
-                        continue
-                logger.info("All Syslog files processing completed.")
+                all_files.extend([("syslog", str(f)) for f in syslog_files])
+        
+        random.shuffle(all_files)
+        for file_type, file_path in all_files:
+            try:
+                if file_type == "pcap":
+                    logger.info(f"Processing PCAP file: {file_path}")
+                    generator.generate_pcap_dataset(file_path)
+                else:  # syslog
+                    logger.info(f"Processing Syslog file: {file_path}")
+                    generator.generate_syslog_dataset(file_path)
+            except Exception as e:
+                logger.error(f"Error occurred while processing file ({file_path}): {e}")
+                continue
+        
+        logger.info("All files processing completed.")
         
     except Exception as e:
         logger.error(f"Error occurred while generating dataset: {e}")
         raise
 
 if __name__ == "__main__":
-    main() 
+    main()

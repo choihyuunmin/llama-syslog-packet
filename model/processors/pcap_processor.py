@@ -50,7 +50,7 @@ class PcapProcessor:
             self.generate_dataset()
             logger.info(f"PCAP processing end : {len(self.packets)} packets processed")
 
-            return self.packets  # IP 주소별로 그룹화된 패킷 정보 반환
+            return self.packets
         except Exception as e:
             logger.error(f"Error processing PCAP: {str(e)}")
             raise
@@ -79,18 +79,21 @@ class PcapProcessor:
         # Packet count analysis
         questions.append({
             "instruction": "What is the total number of packets captured and what is their distribution by protocol?",
+            "input": self.packets,
             "output": self._get_protocol_distribution_answer()
         })
         
         # Top talkers analysis
         questions.append({
             "instruction": "Who are the top 5 source and destination IP addresses by packet count?",
+            "input": self.packets,
             "output": self._get_top_talkers_answer()
         })
         
         # Basic traffic pattern
         questions.append({
             "instruction": "What is the average packet size and how does it vary over time?",
+            "input": self.packets,
             "output": self._get_packet_size_analysis_answer()
         })
         
@@ -103,12 +106,14 @@ class PcapProcessor:
         # Protocol anomaly detection
         questions.append({
             "instruction": "Are there any unusual protocol patterns that might indicate security concerns?",
+            "input": self.packets,
             "output": self._get_protocol_anomaly_answer()
         })
         
         # Session analysis
         questions.append({
             "instruction": "Analyze the TCP session patterns. Are there any signs of scanning or suspicious behavior?",
+            "input": self.packets,
             "output": self._analyze_tcp_sessions()
         })
         
@@ -174,18 +179,21 @@ class PcapProcessor:
         # Firewall rules
         questions.append({
             "instruction": "What firewall rules should be implemented based on the observed suspicious traffic patterns?",
+            "input": self.packets,
             "output": self._get_firewall_recommendations()
         })
         
         # IDS/IPS settings
         questions.append({
             "instruction": "What IDS/IPS rules should be configured to detect and prevent the observed suspicious activities?",
+            "input": self.packets,
             "output": self._get_ids_recommendations()
         })
         
         # Network segmentation
         questions.append({
             "instruction": "Based on the traffic analysis, what network segmentation recommendations can be made?",
+            "input": self.packets,
             "output": self._get_network_segmentation_recommendations()
         })
         
@@ -197,13 +205,12 @@ class PcapProcessor:
         
         recommendations = ["Based on the traffic analysis, the following firewall rules are recommended:"]
         
-        if suspicious_patterns.get('port_scan', False):
-            recommendations.append("""
-                # iptables rules to prevent port scanning
-                iptables -A INPUT -p tcp --tcp-flags ALL NONE -j DROP
-                iptables -A INPUT -p tcp --tcp-flags ALL ALL -j DROP
-                iptables -A INPUT -m state --state INVALID -j DROP
-                """)
+        recommendations.append("""
+            # iptables rules to prevent port scanning
+            iptables -A INPUT -p tcp --tcp-flags ALL NONE -j DROP
+            iptables -A INPUT -p tcp --tcp-flags ALL ALL -j DROP
+            iptables -A INPUT -m state --state INVALID -j DROP
+            """)
         
         if suspicious_patterns.get('ddos', False):
             recommendations.append("""
@@ -253,48 +260,63 @@ class PcapProcessor:
         port_scan_patterns = defaultdict(lambda: defaultdict(set))
         for packet in self.packets:
             if 'src_ip' in packet and 'dst_port' in packet:
-                timestamp = packet['timestamp'][:13]
+                timestamp = packet['timestamp'][:13]  # 초 단위까지
                 port_scan_patterns[packet['src_ip']][timestamp].add(packet['dst_port'])
         
         for src_ip, time_ports in port_scan_patterns.items():
+            # 1초당 포트 스캔 감지
             for timestamp, ports in time_ports.items():
-                if len(ports) > 10:
+                if len(ports) >= 5:  # 1초당 5개 이상의 서로 다른 포트
                     patterns['port_scan'] = True
                     break
+            
+            # 10초 동안의 포트 스캔 감지
+            all_ports = set()
+            for ports in time_ports.values():
+                all_ports.update(ports)
+            if len(all_ports) >= 20:  # 10초 동안 20개 이상의 서로 다른 포트
+                patterns['port_scan'] = True
         
         # DDoS 패턴 분석
-        time_traffic = defaultdict(int)
+        time_traffic = defaultdict(lambda: {'bytes': 0, 'packets': 0})
         for packet in self.packets:
             if 'timestamp' in packet and 'length' in packet:
                 time_key = packet['timestamp'][:13]
-                time_traffic[time_key] += packet['length']
+                time_traffic[time_key]['bytes'] += packet['length']
+                time_traffic[time_key]['packets'] += 1
         
-        avg_traffic = sum(time_traffic.values()) / len(time_traffic) if time_traffic else 0
-        for traffic in time_traffic.values():
-            if traffic > avg_traffic * 5:
-                patterns['ddos'] = True
-                break
-        
-        # 데이터 유출 패턴 분석
-        src_dst_flows = defaultdict(int)
-        for packet in self.packets:
-            if 'src_ip' in packet and 'dst_ip' in packet and 'length' in packet:
-                key = (packet['src_ip'], packet['dst_ip'])
-                src_dst_flows[key] += packet['length']
-        
-        for flow_size in src_dst_flows.values():
-            if flow_size > 1000000:
-                patterns['data_exfil'] = True
-                break
+        if time_traffic:
+            avg_bytes = sum(t['bytes'] for t in time_traffic.values()) / len(time_traffic)
+            avg_packets = sum(t['packets'] for t in time_traffic.values()) / len(time_traffic)
+            
+            for traffic in time_traffic.values():
+                if (traffic['bytes'] > avg_bytes * 3 or  # 평균 대비 3배 이상의 트래픽
+                    traffic['packets'] > 1000):  # 1초당 1000개 이상의 패킷
+                    patterns['ddos'] = True
+                    break
         
         # 의심스러운 프로토콜 패턴 분석
-        protocol_ips = defaultdict(set)
+        protocol_stats = defaultdict(lambda: {'count': 0, 'ips': set(), 'ports': set()})
+        known_malicious_protocols = {'IRC', 'TFTP', 'SNMP'}
+        
         for packet in self.packets:
             if 'src_ip' in packet and 'protocol' in packet:
-                protocol_ips[packet['protocol']].add(packet['src_ip'])
+                protocol = packet['protocol']
+                protocol_stats[protocol]['count'] += 1
+                protocol_stats[protocol]['ips'].add(packet['src_ip'])
+                if 'dst_port' in packet:
+                    protocol_stats[protocol]['ports'].add(packet['dst_port'])
         
-        for protocol, ips in protocol_ips.items():
-            if len(ips) > 5:
+        for protocol, stats in protocol_stats.items():
+            # 알려진 악성 프로토콜 사용
+            if protocol in known_malicious_protocols:
+                patterns['suspicious_protocols'] = True
+                break
+            
+            # 비정상적인 프로토콜 사용 빈도
+            if (stats['count'] > 100 and  # 100회 이상 사용
+                len(stats['ips']) > 3 and  # 3개 이상의 IP에서 사용
+                len(stats['ports']) > 5):  # 5개 이상의 포트에서 사용
                 patterns['suspicious_protocols'] = True
                 break
         

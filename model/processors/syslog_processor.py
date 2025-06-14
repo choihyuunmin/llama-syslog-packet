@@ -216,44 +216,53 @@ class SyslogProcessor:
             'basic_analysis': [
                 {
                     'instruction': "What is the distribution of log entries by severity level in the system logs?",
+                    'input': self.logs,
                     'output': lambda: self._get_severity_distribution()
                 },
                 {
                     'instruction': "What are the most common types of security events in the logs?",
+                    'input': self.logs,
                     'output': lambda: self._get_security_events_summary()
                 },
                 {
                     'instruction': "How many authentication-related events are there in the logs?",
+                    'input': self.logs,
                     'output': lambda: self._get_auth_events_count()
                 }
             ],
             'advanced_analysis': [
                 {
                     'instruction': "Analyze the authentication failure patterns in the logs. Are there any signs of brute force attempts?",
+                    'input': self.logs,
                     'output': lambda: self._analyze_auth_failures()
                 },
                 {
                     'instruction': "What are the most critical security events observed in the logs and their potential impact?",
+                    'input': self.logs,
                     'output': lambda: self._analyze_critical_security_events()
                 }
             ],
             'visualization': [
                 {
                     'instruction': "Create a time series visualization of security events over time.",
+                    'input': self.logs,
                     'output': lambda: self._get_security_visualization_code()
                 },
                 {
                     'instruction': "Generate a visualization showing the distribution of different types of security events.",
+                    'input': self.logs,
                     'output': lambda: self._get_event_distribution_visualization()
                 }
             ],
             'security_config': [
                 {
                     'instruction': "Based on the observed authentication failures, what SSH configuration changes would you recommend?",
+                    'input': self.logs,
                     'output': lambda: self._get_ssh_config_recommendation()
                 },
                 {
                     'instruction': "What system logging configuration would you recommend based on the observed security events?",
+                    'input': self.logs,
                     'output': lambda: self._get_logging_config_recommendation()
                 }
             ]
@@ -264,11 +273,11 @@ class SyslogProcessor:
             for template in questions:
                 try:
                     answer = template['output']()
-                    if answer:  # Only add if we got a valid answer
+                    if answer:
                         dataset.append({
                             'instruction': template['instruction'],
-                            'output': answer,
-                            'category': category
+                            'input': self.logs,
+                            'output': answer
                         })
                 except Exception as e:
                     logger.error(f"Error generating answer for question: {template['instruction']}, error: {e}")
@@ -340,7 +349,6 @@ class SyslogProcessor:
         
         ip_failures = defaultdict(int)
         for _, row in failure_events.iterrows():
-            # IP 주소 추출 (정규식 사용)
             ip_match = re.search(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', row['message'])
             if ip_match:
                 ip_failures[ip_match.group()] += 1
@@ -348,7 +356,6 @@ class SyslogProcessor:
         result = "Authentication failure analysis:\n"
         result += f"Total authentication failures: {len(failure_events)}\n\n"
         
-        # IP 주소별 실패 횟수 정렬
         for ip, count in sorted(ip_failures.items(), key=lambda x: x[1], reverse=True):
             if count > 5:
                 result += f"- IP {ip}: {count} failed attempts (Potential brute force attack)\n"
