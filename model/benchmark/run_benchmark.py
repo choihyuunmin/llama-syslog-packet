@@ -177,7 +177,7 @@ def main():
         LlamaModel("LlamaTrace", "choihyuunmin/LlamaTrace"),
         LlamaModel("LlamaTrace-3B", "choihyuunmin/LlamaTrace-3B"),
         LlamaModel("Llama-3-8B-Instruct", "meta-llama/Meta-Llama-3-8B-Instruct"),
-        OpenAIModel("gpt-4o-mini", os.getenv("OPENAI_API_KEY"))
+        OpenAIModel("gpt-4o", os.getenv("OPENAI_API_KEY"))
     ]
     
     # 벤치마크 실행
