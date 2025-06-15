@@ -1,201 +1,191 @@
 import argparse
 import json
 import logging
+import os
+import pandas as pd
 from pathlib import Path
 import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
-from generator import BenchmarkGenerator
 from evaluator import BenchmarkEvaluator
+from typing import List, Dict, Any
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+from openai import OpenAI
+
+class BaseModel:
+    def __init__(self, model_name: str):
+        self.model_name = model_name
+    
+    def predict(self, prompt: str) -> str:
+        raise NotImplementedError("Subclasses must implement predict method")
+
+class LlamaModel(BaseModel):
+    def __init__(self, model_name: str, model_path: str):
+        super().__init__(model_name)
+        self.model_path = model_path
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # 모델과 토크나이저 로드
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+            device_map="auto"
+        )
+    
+    def predict(self, prompt: str) -> str:
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+        
+        outputs = self.model.generate(
+            **inputs,
+            max_new_tokens=1024,
+            temperature=0.5,
+            top_p=0.9,
+            do_sample=True,
+            pad_token_id=self.tokenizer.eos_token_id
+        )
+        
+        response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        
+        response = response[len(prompt):].strip()
+        return response
+
+class OpenAIModel(BaseModel):
+    def __init__(self, model_name: str, api_key: str):
+        super().__init__(model_name)
+        self.api_key = api_key
+        self.client = OpenAI(api_key=api_key)
+    
+    def predict(self, prompt: str) -> str:
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.5,
+                max_tokens=1024
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logging.error(f"OpenAI API 호출 중 오류 발생: {str(e)}")
+            return ""
 
 def setup_logging():
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
+    return logging.getLogger(__name__)
 
-def load_predictions(predictions_path):
-    """Load model predictions from JSON file."""
-    with open(predictions_path, 'r') as f:
+def load_benchmark_data(data_path):
+    with open(data_path, 'r') as f:
         return json.load(f)
 
-def save_results(results, output_path):
-    """Save evaluation results to JSON file."""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'w') as f:
-        json.dump(results, f, indent=2)
+def save_results(benchmark_data, predictions, metrics_data, output_dir, dataset_type, run_num=None):
+    # CSV 파일명 설정
+    if run_num is not None:
+        csv_filename = f'{dataset_type}_run_{run_num}_metrics.csv'
+        json_filename = f'{dataset_type}_run_{run_num}_results.json'
+    else:
+        csv_filename = f'{dataset_type}_avg_metrics.csv'
+        json_filename = f'{dataset_type}_avg_results.json'
+    
+    # 메트릭 데이터를 DataFrame으로 변환
+    metrics_df = pd.DataFrame(metrics_data).T
+    metrics_df.index.name = 'model'
+    
+    # CSV 파일로 저장
+    csv_path = output_dir / csv_filename
+    metrics_df.to_csv(csv_path)
+    
+    # JSON 파일로 저장 (원본 데이터 + 예측 결과)
+    json_path = output_dir / json_filename
+    results = {
+        'benchmark_data': benchmark_data,
+        'predictions': predictions,
+        'metrics': metrics_data
+    }
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
 
-def run_benchmark(
-    benchmark_dir,
-    predictions_path,
-    model_name,
-    num_runs=5,
-    batch_size=100
-):
-    """Run benchmark evaluation multiple times."""
-    all_results = []
+def run_benchmark(models, benchmark_dir, output_dir):
+    """벤치마크 실행"""
+    evaluator = BenchmarkEvaluator()
+    num_runs = 5 
     
-    for run in range(num_runs):
-        logging.info(f"Starting benchmark run {run + 1}/{num_runs} for model {model_name}")
+    # 데이터셋 타입별 평가
+    for dataset_type in ['pcap', 'syslog', 'code']:  # code 데이터셋 추가
+        print(f"\n=== {dataset_type} 데이터셋 평가 시작 ===")
         
-        # Load predictions
-        predictions = load_predictions(predictions_path)
+        # 벤치마크 데이터 로드
+        benchmark_file = benchmark_dir / f'{dataset_type}_test.json'
+        with open(benchmark_file, 'r', encoding='utf-8') as f:
+            benchmark_data = json.load(f)
         
-        # Initialize evaluator
-        evaluator = BenchmarkEvaluator(
-            benchmark_path=benchmark_dir / 'benchmark.json',
-            batch_size=batch_size
-        )
+        all_metrics_data = []
+        all_predictions_list = []
         
-        # Run evaluation
-        results = evaluator.run_evaluation(predictions)
-        results['model_name'] = model_name
-        all_results.append(results)
+        for run in range(num_runs):
+            print(f"\n=== 실행 {run + 1}/{num_runs} ===")
+            
+            # 각 모델별 예측 결과 수집
+            all_predictions = {}
+            for model in models:
+                print(f"\n{model.model_name} 모델 예측 중...")
+                predictions = []
+                for item in benchmark_data:
+                    prompt = f"{item['instruction']}\n\n Context: \n{item['input']}"
+                    prediction = model.predict(prompt)
+                    predictions.append({
+                        'input': prompt,
+                        'output': prediction,
+                        'expected_output': item['output']
+                    })
+                all_predictions[model.model_name] = predictions
+            
+            # 평가 실행
+            metrics_data = evaluator.evaluate(benchmark_data, all_predictions, dataset_type)
+            all_metrics_data.append(metrics_data)
+            all_predictions_list.append(all_predictions)
+            
+            # 각 실행의 결과 저장
+            save_results(benchmark_data, all_predictions, metrics_data, output_dir, dataset_type, run + 1)
         
-        # Save individual run results
-        run_dir = benchmark_dir / f"run_{run + 1}"
-        run_dir.mkdir(parents=True, exist_ok=True)
+        # 평균 메트릭 계산
+        avg_metrics_data = {}
+        for model_name in all_metrics_data[0].keys():
+            avg_metrics = {}
+            for metric in all_metrics_data[0][model_name].keys():
+                values = [run_data[model_name][metric] for run_data in all_metrics_data]
+                avg_metrics[metric] = sum(values) / len(values)
+            avg_metrics_data[model_name] = avg_metrics
         
-        save_results(results, run_dir / f'{model_name}_results.json')
-        evaluator.visualize_results(results, run_dir)
+        # 평균 메트릭 저장
+        save_results(benchmark_data, all_predictions_list[-1], avg_metrics_data, output_dir, dataset_type)
         
-        logging.info(f"Completed benchmark run {run + 1}/{num_runs} for model {model_name}")
-    
-    return all_results
-
-def evaluate_all_models(benchmark_dir, predictions_dir, num_runs=5, batch_size=100):
-    """Evaluate all models in the predictions directory."""
-    all_results = []
-    predictions_dir = Path(predictions_dir)
-    
-    # Get all prediction files
-    prediction_files = list(predictions_dir.glob('*_predictions.json'))
-    
-    for pred_file in prediction_files:
-        model_name = pred_file.stem.replace('_predictions', '')
-        logging.info(f"Evaluating model: {model_name}")
+        # 평균 메트릭으로 시각화
+        evaluator.visualize_metrics(avg_metrics_data, f"{dataset_type}_avg")
+        evaluator.visualize_regex_metrics(avg_metrics_data, f"{dataset_type}_avg")
+        evaluator.visualize_code_metrics(avg_metrics_data, f"{dataset_type}_avg")
         
-        model_results = run_benchmark(
-            benchmark_dir=benchmark_dir,
-            predictions_path=pred_file,
-            model_name=model_name,
-            num_runs=num_runs,
-            batch_size=batch_size
-        )
-        all_results.extend(model_results)
-    
-    return all_results
-
-def compare_models(all_results, output_dir):
-    """Compare results from multiple models."""
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Group results by model
-    model_results = {}
-    for run_results in all_results:
-        model_name = run_results['model_name']
-        if model_name not in model_results:
-            model_results[model_name] = []
-        model_results[model_name].append(run_results)
-    
-    # Calculate average metrics for each model
-    model_metrics = {}
-    for model_name, results in model_results.items():
-        metrics = {
-            'accuracy': np.mean([r['accuracy_metrics']['accuracy'] for r in results]),
-            'f1_score': np.mean([r['accuracy_metrics']['f1_score'] for r in results]),
-            'rouge_l': np.mean([r['rouge_scores']['rougeL'] for r in results]),
-            'semantic_similarity': np.mean([r['semantic_similarity'] for r in results]),
-            'hallucination_rate': np.mean([r['hallucination_rate'] for r in results]),
-            'execution_time': np.mean([r['resource_metrics']['execution_time_ms'] for r in results]),
-            'memory_usage': np.mean([r['resource_metrics']['memory_usage_mb'] for r in results])
-        }
-        model_metrics[model_name] = metrics
-    
-    # 1. Performance Metrics Comparison
-    plt.figure(figsize=(15, 8))
-    metrics = ['accuracy', 'f1_score', 'rouge_l', 'semantic_similarity', 'hallucination_rate']
-    x = np.arange(len(metrics))
-    width = 0.8 / len(model_metrics)
-    
-    for i, (model_name, metrics_dict) in enumerate(model_metrics.items()):
-        values = [metrics_dict[m] for m in metrics]
-        plt.bar(x + i * width, values, width, label=model_name)
-    
-    plt.title('Model Performance Comparison')
-    plt.xlabel('Metrics')
-    plt.ylabel('Score')
-    plt.xticks(x + width * (len(model_metrics) - 1) / 2, metrics, rotation=45)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(output_dir / 'performance_comparison.png')
-    plt.close()
-    
-    # 2. Resource Usage Comparison
-    plt.figure(figsize=(12, 6))
-    resource_metrics = ['execution_time', 'memory_usage']
-    x = np.arange(len(resource_metrics))
-    width = 0.8 / len(model_metrics)
-    
-    for i, (model_name, metrics_dict) in enumerate(model_metrics.items()):
-        values = [metrics_dict[m] for m in resource_metrics]
-        plt.bar(x + i * width, values, width, label=model_name)
-    
-    plt.title('Resource Usage Comparison')
-    plt.xlabel('Metrics')
-    plt.ylabel('Value')
-    plt.xticks(x + width * (len(model_metrics) - 1) / 2, resource_metrics, rotation=45)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(output_dir / 'resource_comparison.png')
-    plt.close()
-    
-    # Save comparison results
-    with open(output_dir / 'model_comparison.json', 'w') as f:
-        json.dump(model_metrics, f, indent=2)
+        print(f"=== {dataset_type} 데이터셋 평가 완료 ===\n")
 
 def main():
-    parser = argparse.ArgumentParser(description='Run network security analysis benchmark')
-    parser.add_argument('--generate', action='store_true', help='Generate benchmark dataset')
-    parser.add_argument('--evaluate', action='store_true', help='Evaluate model predictions')
-    parser.add_argument('--benchmark-dir', type=str, default='benchmark_data',
-                      help='Directory for benchmark data')
-    parser.add_argument('--predictions-dir', type=str, default='model_predictions',
-                      help='Directory containing model predictions')
-    parser.add_argument('--num-runs', type=int, default=5,
-                      help='Number of benchmark runs')
-    parser.add_argument('--batch-size', type=int, default=100,
-                      help='Batch size for evaluation')
+    # 모델 설정
+    models = [
+        LlamaModel("LlamaTrace", "choihyuunmin/LlamaTrace"),
+        LlamaModel("LlamaTrace-3B", "choihyuunmin/LlamaTrace-3B"),
+        LlamaModel("Llama-3-8B-Instruct", "meta-llama/Meta-Llama-3-8B-Instruct"),
+        OpenAIModel("gpt-4o-mini", os.getenv("OPENAI_API_KEY"))
+    ]
     
-    args = parser.parse_args()
-    setup_logging()
+    # 벤치마크 실행
+    benchmark_dir = Path('benchmark_data')
+    output_dir = Path('results')
+    output_dir.mkdir(exist_ok=True)
     
-    benchmark_dir = Path(args.benchmark_dir)
-    benchmark_dir.mkdir(parents=True, exist_ok=True)
-    
-    if args.generate:
-        logging.info("Generating benchmark dataset...")
-        generator = BenchmarkGenerator(benchmark_dir)
-        generator.generate_all_benchmarks()
-        logging.info("Benchmark dataset generation completed")
-    
-    if args.evaluate:
-        logging.info("Starting benchmark evaluation for all models...")
-        all_results = evaluate_all_models(
-            benchmark_dir=benchmark_dir,
-            predictions_dir=args.predictions_dir,
-            num_runs=args.num_runs,
-            batch_size=args.batch_size
-        )
-        
-        # Analyze results from all runs
-        analysis_dir = benchmark_dir / 'analysis'
-        analysis_dir.mkdir(parents=True, exist_ok=True)
-        compare_models(all_results, analysis_dir)
-        
-        logging.info("Benchmark evaluation completed for all models")
+    run_benchmark(models, benchmark_dir, output_dir)
 
 if __name__ == '__main__':
     main() 
