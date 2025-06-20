@@ -1,5 +1,6 @@
 from typing import List, Dict, Any
 import logging
+import torch
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
@@ -27,8 +28,12 @@ class RAGService:
         self.llm = None
         self.use_openai = use_openai
         
+        # Llama model attributes
+        self.model = None
+        self.tokenizer = None
+        self.device = None
+        
     def _load_llama_model(self):
-        """Load custom Llama model"""
         try:
             model_name = "choihyuunmin/LlamaTrace"
             tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -39,28 +44,22 @@ class RAGService:
                 trust_remote_code=True
             )
             
-            # Create pipeline
-            pipe = pipeline(
-                "text-generation",
-                model=model,
-                tokenizer=tokenizer,
-                max_new_tokens=1024,
-                temperature=0.3,
-                top_p=0.9,
-                repetition_penalty=1.1,
-                do_sample=True,
-                pad_token_id=tokenizer.eos_token_id
-            )
+            # GPU 사용 가능 시 활용
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            model = model.to(device)
             
-            self.llm = HuggingFacePipeline(pipeline=pipe)
-            logger.info(f"Loaded Llama model: {model_name}")
+            # Store model and tokenizer for direct use
+            self.model = model
+            self.tokenizer = tokenizer
+            self.device = device
+            
+            logger.info(f"Loaded Llama model: {model_name} on {device}")
             
         except Exception as e:
             logger.error(f"Error loading Llama model: {e}")
             raise
     
     def _load_openai_model(self):
-        """Load OpenAI GPT-3.5-turbo model"""
         try:
             if not settings.openai_api_key:
                 raise ValueError("OpenAI API key is required for GPT-3.5-turbo")
@@ -280,73 +279,97 @@ class RAGService:
         if self.llm is None:
             if self.use_openai:
                 self._load_openai_model()
+                # Create QA chain for OpenAI
+                prompt_template = """
+                You are a network and system analysis expert. Use the following context to answer the question.
+                
+                Context: {context}
+                
+                Question: {question}
+                
+                Answer based on the context provided. If the question asks for code, provide executable Python code.
+                """
+                
+                prompt = PromptTemplate(
+                    template=prompt_template,
+                    input_variables=["context", "question"]
+                )
+                
+                self.qa_chain = RetrievalQA.from_chain_type(
+                    llm=self.llm,
+                    chain_type="stuff",
+                    retriever=self.vector_store.as_retriever(
+                        search_kwargs={
+                            "k": 5,
+                            "score_threshold": 0.7
+                        }
+                    ),
+                    chain_type_kwargs={"prompt": prompt},
+                    return_source_documents=True
+                )
             else:
                 self._load_llama_model()
-        
-        # Create QA chain with improved prompt
-        if self.use_openai:
-            prompt_template = """
-            You are a network and system analysis expert. Use the following context to answer the question.
-            
-            Context: {context}
-            
-            Question: {question}
-            
-            Answer based on the context provided. If the question asks for code, provide executable Python code.
-            """
-        else:
-            prompt_template = """
-            <s>[INST] You are a network and system analysis expert specializing in packet analysis and log analysis. 
-            You have access to the following context information about a specific file that has been analyzed.
-            
-            Context Information:
-            {context}
-            
-            User Question: {question}
-            
-            Please provide a detailed and accurate answer based on the context information provided above. 
-            If the question asks for code or visualization, provide executable Python code.
-            If the context doesn't contain enough information to answer the question, say so clearly.
-            
-            Answer: [/INST]
-            """
-        
-        prompt = PromptTemplate(
-            template=prompt_template,
-            input_variables=["context", "question"]
-        )
-        
-        # Use more retrieved documents
-        self.qa_chain = RetrievalQA.from_chain_type(
-            llm=self.llm,
-            chain_type="stuff",
-            retriever=self.vector_store.as_retriever(
-                search_kwargs={
-                    "k": 5,
-                    "score_threshold": 0.7
-                }
-            ),
-            chain_type_kwargs={"prompt": prompt},
-            return_source_documents=True
-        )
         
         logger.info(f"Vector store created with {len(split_docs)} documents")
     
     def query(self, question: str) -> str:
         """Query the RAG system"""
-        if not self.qa_chain:
+        if not self.vector_store:
             return "No file has been processed yet. Please upload a file first."
         
         try:
-            # Get response with source documents
-            result = self.qa_chain({"query": question})
-            response = result["result"]
-            source_docs = result.get("source_documents", [])
+            # Retrieve relevant documents
+            docs = self.vector_store.similarity_search(question, k=5)
+            context = "\n\n".join([doc.page_content for doc in docs])
+            
+            # Create prompt with context
+            if self.use_openai:
+                # Use existing OpenAI chain
+                result = self.qa_chain({"query": question})
+                response = result["result"]
+            else:
+                # Use direct Llama model like test_llm.py
+                prompt = f"""<s>[INST] You are a network and system analysis expert specializing in packet analysis and log analysis. 
+You have access to the following context information about a specific file that has been analyzed.
+
+Context Information:
+{context}
+
+User Question: {question}
+
+Please provide a detailed and accurate answer based on the context information provided above. 
+If the question asks for code or visualization, provide executable Python code.
+If the context doesn't contain enough information to answer the question, say so clearly.
+
+Answer: [/INST]"""
+                
+                # Tokenize input
+                inputs = self.tokenizer(prompt, return_tensors="pt")
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}
+                
+                # Generate response
+                with torch.no_grad():
+                    outputs = self.model.generate(
+                        **inputs,
+                        max_new_tokens=1024,
+                        do_sample=True,
+                        temperature=0.3,
+                        top_p=0.9,
+                        repetition_penalty=1.1,
+                        pad_token_id=self.tokenizer.eos_token_id
+                    )
+                
+                # Decode response
+                response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+                
+                # Extract only the generated part (remove input prompt)
+                if "Answer:" in response:
+                    response = response.split("Answer:")[-1].strip()
             
             # Log retrieved context
             logger.info(f"Question: {question}")
-            logger.info(f"Retrieved {len(source_docs)} source documents")
-            for i, doc in enumerate(source_docs[:2]):
+            logger.info(f"Retrieved {len(docs)} source documents")
+            for i, doc in enumerate(docs[:2]):
                 logger.info(f"Source doc {i+1}: {doc.page_content[:200]}...")
             
             print(f"Response: {response}")
