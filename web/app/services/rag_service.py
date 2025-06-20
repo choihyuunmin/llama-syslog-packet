@@ -11,11 +11,12 @@ from langchain_openai import ChatOpenAI
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from accelerate import Accelerator
 
 from web.app.core.config import settings
 
 logger = logging.getLogger(__name__)
-
+accelerator = Accelerator()
 class RAGService:
     def __init__(self, use_openai: bool = False):
         self.embeddings = HuggingFaceEmbeddings(
@@ -45,7 +46,7 @@ class RAGService:
             )
             
             # GPU 사용 가능 시 활용
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            device = accelerator.device
             model = model.to(device)
             
             # Store model and tokenizer for direct use
@@ -264,8 +265,6 @@ class RAGService:
         return summary
     
     def _create_vector_store(self, documents: List[Document]):
-        """Create vector store from documents"""
-        # Text splitting for context preservation
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=800,
             chunk_overlap=300,
@@ -328,20 +327,20 @@ class RAGService:
                 result = self.qa_chain({"query": question})
                 response = result["result"]
             else:
-                # Use direct Llama model like test_llm.py
-                prompt = f"""<s>[INST] You are a network and system analysis expert specializing in packet analysis and log analysis. 
-You have access to the following context information about a specific file that has been analyzed.
+                # Create a cleaner prompt format for Llama
+                system_prompt = "You are a network and system analysis expert specializing in packet analysis and log analysis."
+                
+                user_prompt = f"""Based on the following context information about a specific file that has been analyzed, please answer the user's question.
 
-Context Information:
-{context}
+                                Context Information:
+                                {context}
 
-User Question: {question}
+                                User Question: {question}
 
-Please provide a detailed and accurate answer based on the context information provided above. 
-If the question asks for code or visualization, provide executable Python code.
-If the context doesn't contain enough information to answer the question, say so clearly.
-
-Answer: [/INST]"""
+                                Please provide a detailed and accurate answer based on the context information provided above. If the question asks for code or visualization, provide executable Python code. If the context doesn't contain enough information to answer the question, say so clearly."""
+                
+                # Use Llama's chat format
+                prompt = f"<s>[INST] {system_prompt}\n\n{user_prompt} [/INST]"
                 
                 # Tokenize input
                 inputs = self.tokenizer(prompt, return_tensors="pt")
@@ -363,8 +362,14 @@ Answer: [/INST]"""
                 response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
                 
                 # Extract only the generated part (remove input prompt)
-                if "Answer:" in response:
-                    response = response.split("Answer:")[-1].strip()
+                if "[/INST]" in response:
+                    response = response.split("[/INST]")[-1].strip()
+                else:
+                    # If no clear marker, try to extract after the last instruction
+                    response = response[len(prompt):].strip()
+                
+                # Clean up any remaining special tokens or formatting
+                response = response.replace("<s>", "").replace("</s>", "").strip()
             
             # Log retrieved context
             logger.info(f"Question: {question}")
