@@ -1,28 +1,57 @@
+import os
 from pathlib import Path
 import pyshark
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
+from web.app.core.config import settings
 
-logging.basicConfig(level=logging.INFO)
+# 로거 설정
 logger = logging.getLogger(__name__)
+
+
+class FileAnalysisError(Exception):
+    pass
+
+
+class InvalidFileTypeError(Exception):
+    pass
+
 
 def analyze_pcap(file_path: Path) -> Dict[str, Any]:
     """
     PCAP 파일을 분석하여 네트워크 트래픽 정보를 추출합니다.
+    
+    Args:
+        file_path: 분석할 PCAP 파일 경로
+        
+    Returns:
+        Dict[str, Any]: 분석 결과 딕셔너리
+        
+    Raises:
+        FileAnalysisError: PCAP 분석 중 오류 발생 시
+        FileNotFoundError: 파일을 찾을 수 없을 때
     """
     try:
+        if not file_path.exists():
+            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
+            
+        logger.info(f"PCAP 파일 분석 시작: {file_path}")
         capture = pyshark.FileCapture(str(file_path))
-        stats = {
+        
+        stats: Dict[str, Any] = {
             "total_packets": 0,
             "protocols": {},
             "source_ips": {},
             "destination_ips": {},
-            "top_conversations": []
+            "top_conversations": [],
+            "analysis_time": None
         }
         
+        packet_count = 0
         for packet in capture:
-            stats["total_packets"] += 1
+            packet_count += 1
+            stats["total_packets"] = packet_count
             
             # 프로토콜 통계
             if hasattr(packet, 'highest_layer'):
@@ -54,26 +83,48 @@ def analyze_pcap(file_path: Path) -> Dict[str, Any]:
             reverse=True
         )[:10]
         
+        logger.info(f"PCAP 분석 완료: {packet_count}개 패킷 분석됨")
         return stats
+        
+    except FileNotFoundError:
+        logger.error(f"PCAP 파일을 찾을 수 없습니다: {file_path}")
+        raise
     except Exception as e:
         logger.error(f"PCAP 분석 중 오류 발생: {str(e)}")
-        raise
+        raise FileAnalysisError(f"PCAP 파일 분석 실패: {str(e)}")
+
 
 def analyze_log(file_path: Path) -> Dict[str, Any]:
     """
     로그 파일을 분석하여 주요 패턴과 통계를 추출합니다.
+    
+    Args:
+        file_path: 분석할 로그 파일 경로
+        
+    Returns:
+        Dict[str, Any]: 분석 결과 딕셔너리
+        
+    Raises:
+        FileAnalysisError: 로그 분석 중 오류 발생 시
+        FileNotFoundError: 파일을 찾을 수 없을 때
     """
     try:
-        with open(file_path, 'r') as f:
+        if not file_path.exists():
+            raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
+            
+        logger.info(f"로그 파일 분석 시작: {file_path}")
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
             logs = f.readlines()
         
-        stats = {
+        stats: Dict[str, Any] = {
             "total_lines": len(logs),
             "error_count": 0,
             "warning_count": 0,
             "ip_addresses": set(),
             "timestamps": [],
-            "common_patterns": {}
+            "common_patterns": {},
+            "analysis_time": None
         }
         
         # 로그 패턴 분석
@@ -111,19 +162,58 @@ def analyze_log(file_path: Path) -> Dict[str, Any]:
             reverse=True
         )[:10])
         
+        logger.info(f"로그 분석 완료: {len(logs)}개 라인 분석됨")
         return stats
+        
+    except FileNotFoundError:
+        logger.error(f"로그 파일을 찾을 수 없습니다: {file_path}")
+        raise
     except Exception as e:
         logger.error(f"로그 분석 중 오류 발생: {str(e)}")
-        raise
+        raise FileAnalysisError(f"로그 파일 분석 실패: {str(e)}")
+
 
 def get_file_type(file_path: Path) -> str:
     """
     파일 확장자를 기반으로 파일 타입을 반환합니다.
+    
+    Args:
+        file_path: 파일 경로
+        
+    Returns:
+        str: 파일 타입 ('pcap', 'log', 'unknown')
     """
     extension = file_path.suffix.lower()
+    
     if extension == '.pcap':
         return 'pcap'
     elif extension in ['.log', '.txt']:
         return 'log'
     else:
-        return 'unknown' 
+        return 'unknown'
+
+
+def validate_file_upload(filename: str, file_size: int) -> None:
+    """
+    파일 업로드 유효성을 검사합니다.
+    
+    Args:
+        filename: 파일명
+        file_size: 파일 크기 (bytes)
+        
+    Raises:
+        InvalidFileTypeError: 지원하지 않는 파일 타입일 때
+        ValueError: 파일 크기가 제한을 초과할 때
+    """
+    file_path = Path(filename)
+    file_type = get_file_type(file_path)
+    
+    if file_type == 'unknown':
+        raise InvalidFileTypeError(
+            f"지원하지 않는 파일 타입입니다: {file_path.suffix}. "
+            f"지원되는 확장자: {', '.join(settings.allowed_extensions)}"
+        )
+    
+    if file_size > settings.max_file_size:
+        max_size_mb = settings.max_file_size / (1024 * 1024)
+        raise ValueError(f"파일 크기가 제한을 초과했습니다. 최대 크기: {max_size_mb}MB") 

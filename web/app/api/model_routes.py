@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from ..core.config import AVAILABLE_MODELS
-from ..services.chat_service import ChatService
+from web.app.core.config import AVAILABLE_MODELS
+from web.app.services.chat_service import ChatService
 
 router = APIRouter()
 chat_service = ChatService()

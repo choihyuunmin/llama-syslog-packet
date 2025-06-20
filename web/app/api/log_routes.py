@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime
 
-from ..services.syslog_analyzer import SyslogAnalyzer
+from web.app.services.syslog_analyzer import SyslogAnalyzer
 
 router = APIRouter()
 syslog_analyzer = SyslogAnalyzer()

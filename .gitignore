@@ -9,3 +9,5 @@
 *.jsonl
 *.json
 models/datasets/syslog/
+web/.locks/*
+web/models--choihyuunmin--LlamaTrace/*

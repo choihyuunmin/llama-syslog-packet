@@ -1,33 +1,102 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
-from typing import Dict
+from typing import Dict, Optional, Any
 import logging
+from web.app.core.config import settings, AVAILABLE_MODELS
 
 logger = logging.getLogger(__name__)
 
+
+class ModelLoadError(Exception):
+    """모델 로딩 중 발생하는 예외"""
+    pass
+
+
 class ChatService:
-    def __init__(self, model_name: str = "choihyuunmin/mobile-Llama-3-Instruct"):
-        self.model_name = model_name
-        self.tokenizer = None
-        self.model = None
-        self.load_model(model_name)
+    """채팅 및 모델 관리를 담당하는 서비스 클래스"""
     
-    def load_model(self, model_name: str):
+    def __init__(self, model_name: Optional[str] = None):
+        """
+        ChatService 초기화
+        
+        Args:
+            model_name: 사용할 모델명 (None인 경우 기본 모델 사용)
+        """
+        self.model_name = model_name or settings.default_model
+        self.tokenizer: Optional[AutoTokenizer] = None
+        self.model: Optional[AutoModelForCausalLM] = None
+        
+        # 모델 로딩
+        self.load_model(self.model_name)
+    
+    def load_model(self, model_name: str) -> None:
+        """
+        모델을 로딩합니다.
+        
+        Args:
+            model_name: 로딩할 모델명
+            
+        Raises:
+            ModelLoadError: 모델 로딩 실패 시
+            ValueError: 지원하지 않는 모델명일 때
+        """
         try:
-            logger.info(f"Loading model: {model_name}")
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForCausalLM.from_pretrained(model_name)
+            if model_name not in AVAILABLE_MODELS:
+                raise ValueError(f"지원하지 않는 모델입니다: {model_name}")
+            
+            model_info = AVAILABLE_MODELS[model_name]
+            actual_model_name = model_info["name"]
+            
+            logger.info(f"모델 로딩 시작: {model_name} ({actual_model_name})")
+            
+            # 토크나이저 로딩
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                actual_model_name,
+                cache_dir=settings.model_cache_dir
+            )
+            
+            # 모델 로딩
+            self.model = AutoModelForCausalLM.from_pretrained(
+                actual_model_name,
+                cache_dir=settings.model_cache_dir,
+                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                device_map="auto" if torch.cuda.is_available() else None
+            )
+            
             self.model_name = model_name
-            logger.info("Model loaded successfully")
-        except Exception as e:
-            logger.error(f"Error loading model: {str(e)}")
+            logger.info(f"모델 로딩 완료: {model_name}")
+            
+        except ValueError as e:
+            logger.error(f"모델 로딩 실패 - 잘못된 모델명: {str(e)}")
             raise
+        except Exception as e:
+            logger.error(f"모델 로딩 실패: {str(e)}")
+            raise ModelLoadError(f"모델 로딩 실패: {str(e)}")
 
-    async def generate_response(self, message: str, model: str) -> Dict[str, str]:
+    async def generate_response(self, message: str, model: Optional[str] = None) -> Dict[str, Any]:
+        """
+        메시지에 대한 응답을 생성합니다.
+        
+        Args:
+            message: 입력 메시지
+            model: 사용할 모델명 (None인 경우 현재 로딩된 모델 사용)
+            
+        Returns:
+            Dict[str, Any]: 생성된 응답
+            
+        Raises:
+            ModelLoadError: 모델이 로딩되지 않았거나 응답 생성 실패 시
+        """
         try:
+            # 모델 변경이 요청된 경우
+            if model and model != self.model_name:
+                self.load_model(model)
+            
             if not self.model or not self.tokenizer:
-                raise Exception("Model not loaded")
+                raise ModelLoadError("모델이 로딩되지 않았습니다")
 
+            logger.info(f"응답 생성 시작: {len(message)}자 메시지")
+            
             # 입력 텍스트를 토큰화
             inputs = self.tokenizer(message, return_tensors="pt")
             
@@ -35,34 +104,105 @@ class ChatService:
             with torch.no_grad():
                 outputs = self.model.generate(
                     inputs["input_ids"],
-                    max_length=100,
+                    max_length=512,
                     num_return_sequences=1,
-                    pad_token_id=self.tokenizer.eos_token_id
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    do_sample=True,
+                    temperature=0.7,
+                    top_p=0.9
                 )
             
             # 생성된 텍스트 디코딩
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             
-            return {"response": response}
+            # 입력 메시지 제거하여 실제 응답만 추출
+            if response.startswith(message):
+                response = response[len(message):].strip()
+            
+            result = {
+                "response": response,
+                "model": self.model_name,
+                "input_length": len(message),
+                "output_length": len(response)
+            }
+            
+            logger.info(f"응답 생성 완료: {len(response)}자 응답")
+            return result
+            
         except Exception as e:
-            logger.error(f"Error generating response: {str(e)}")
-            raise
+            logger.error(f"응답 생성 실패: {str(e)}")
+            raise ModelLoadError(f"응답 생성 실패: {str(e)}")
 
-    def generate_response_sync(self, message: str, model: str) -> Dict[str, str]:
+    def generate_response_sync(self, message: str, model: Optional[str] = None) -> Dict[str, Any]:
+        """
+        동기적으로 메시지에 대한 응답을 생성합니다.
+        
+        Args:
+            message: 입력 메시지
+            model: 사용할 모델명 (None인 경우 현재 로딩된 모델 사용)
+            
+        Returns:
+            Dict[str, Any]: 생성된 응답
+            
+        Raises:
+            ModelLoadError: 모델이 로딩되지 않았거나 응답 생성 실패 시
+        """
         try:
+            # 모델 변경이 요청된 경우
+            if model and model != self.model_name:
+                self.load_model(model)
+            
             if not self.model or not self.tokenizer:
-                raise Exception("Model not loaded")
+                raise ModelLoadError("모델이 로딩되지 않았습니다")
 
+            logger.info(f"동기 응답 생성 시작: {len(message)}자 메시지")
+            
             inputs = self.tokenizer(message, return_tensors="pt")
             with torch.no_grad():
                 outputs = self.model.generate(
                     inputs["input_ids"],
-                    max_length=100,
+                    max_length=512,
                     num_return_sequences=1,
-                    pad_token_id=self.tokenizer.eos_token_id
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    do_sample=True,
+                    temperature=0.7,
+                    top_p=0.9
                 )
+            
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            return {"response": response}
+            
+            # 입력 메시지 제거하여 실제 응답만 추출
+            if response.startswith(message):
+                response = response[len(message):].strip()
+            
+            result = {
+                "response": response,
+                "model": self.model_name,
+                "input_length": len(message),
+                "output_length": len(response)
+            }
+            
+            logger.info(f"동기 응답 생성 완료: {len(response)}자 응답")
+            return result
+            
         except Exception as e:
-            logger.error(f"Error generating response: {str(e)}")
-            raise 
+            logger.error(f"동기 응답 생성 실패: {str(e)}")
+            raise ModelLoadError(f"동기 응답 생성 실패: {str(e)}")
+
+    def get_available_models(self) -> Dict[str, Dict[str, str]]:
+        """
+        사용 가능한 모델 목록을 반환합니다.
+        
+        Returns:
+            Dict[str, Dict[str, str]]: 사용 가능한 모델 정보
+        """
+        return AVAILABLE_MODELS
+
+    def get_current_model(self) -> str:
+        """
+        현재 로딩된 모델명을 반환합니다.
+        
+        Returns:
+            str: 현재 모델명
+        """
+        return self.model_name 

@@ -1,0 +1,185 @@
+[tool.poetry]
+name = "syspacket"
+version = "1.0.0"
+description = "Syslog 및 PCAP 파일을 분석하고 네트워크 트래픽에 대한 질문에 답변하는 AI 기반 시스템"
+authors = ["SysPacket Team"]
+readme = "README.md"
+packages = [
+    {include = "model"},
+    {include = "web"}
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+
+fastapi = "^0.109.0"
+uvicorn = {extras = ["standard"], version = "^0.27.0"}
+python-multipart = "^0.0.9"
+pydantic = {extras = ["email"], version = "^2.6.0"}
+pydantic-settings = "^2.1.0"
+python-dotenv = "^1.0.0"
+
+transformers = "^4.35.0"
+torch = "^2.1.0"
+
+pyshark = "^0.6.0"
+scapy = "^2.5.0"
+dpkt = "^1.9.0"
+
+pandas = "^2.2.0"
+numpy = "^1.24.0"
+matplotlib = "^3.8.0"
+seaborn = "^0.13.0"
+scikit-learn = "^1.4.0"
+
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+passlib = {extras = ["bcrypt"], version = "^1.7.0"}
+bcrypt = "^4.1.0"
+
+streamlit = "^1.31.0"
+
+tqdm = "^4.66.0"
+jupyter = "^1.0.0"
+ipykernel = "^6.29.0"
+
+# RAG System dependencies
+langchain = "^0.1.0"
+langchain-openai = "^0.0.5"
+langchain-community = "^0.0.20"
+chromadb = "^0.4.22"
+sentence-transformers = "^2.2.2"
+faiss-cpu = "^1.7.4"
+openai = "^1.12.0"
+accelerate = "^0.25.0"
+
+# Code execution
+executing = "^2.0.1"
+rich = "^13.7.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.23.0"
+pytest-cov = "^4.1.0"
+httpx = "^0.26.0"
+ruff = "^0.1.0"
+black = "^23.12.0"
+isort = "^5.13.0"
+mypy = "^1.8.0"
+pre-commit = "^4.2.0"
+
+[tool.poetry.group.benchmark.dependencies]
+mlflow = "^2.8.0"
+wandb = "^0.16.0"
+optuna = "^3.5.0"
+hyperopt = "^0.2.7"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.23.0"
+pytest-cov = "^4.1.0"
+httpx = "^0.26.0"
+
+[tool.poetry.group.lint.dependencies]
+ruff = "^0.1.0"
+black = "^23.12.0"
+isort = "^5.13.0"
+mypy = "^1.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+select = ["B", "E", "F", "I", "UP", "W"]
+ignore = ["B905", "B008", "B904", "F811", "E501", "F841"]
+line-length = 88
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "tests",
+    "*.egg-info"
+]
+
+[tool.black]
+target-version = ['py310']
+line-length = 88
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["model", "app"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pyshark.*",
+    "scapy.*",
+    "dpkt.*",
+    "transformers.*",
+    "torch.*",
+    "sklearn.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=model",
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["model", "app"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/env/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+] 

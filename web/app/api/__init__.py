@@ -1,1 +1,1 @@
-from . import file_routes, chat_routes 
+from web.app.api import file_routes, chat_routes 

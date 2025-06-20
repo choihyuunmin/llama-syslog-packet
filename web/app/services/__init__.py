@@ -1,1 +1,1 @@
-from . import file_service, chat_service 
+from web.app.services import file_service, chat_service, packet_analyzer

@@ -1,247 +1,296 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 from pathlib import Path
-import sys
-import os
-from typing import Optional, Dict, Any, List
-import json
-import re
-from services.chat_service import ChatService
-from services.packet_analyzer import PacketAnalyzer
+from io import BytesIO
 
-sys.path.append(str(Path(__file__).parent.parent))
+from web.app.services.rag_service import RAGService
+from web.app.services.code_executor import CodeExecutor
 
 st.set_page_config(
     page_title="SysPacket Analysis Tool",
-    page_icon="📂",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-if 'chat_service' not in st.session_state:
-    st.session_state.chat_service = ChatService()
+if 'rag_service' not in st.session_state:
+    st.session_state.rag_service = RAGService()
+if 'code_executor' not in st.session_state:
+    st.session_state.code_executor = CodeExecutor()
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'current_file' not in st.session_state:
     st.session_state.current_file = None
-if 'file_profile' not in st.session_state:
-    st.session_state.file_profile = None
-if 'code_snippets' not in st.session_state:
-    st.session_state.code_snippets = []
-
-def get_llm_response_sync(message: str) -> str:
-    try:
-        result = st.session_state.chat_service.generate_response_sync(message, "gpt-3.5-turbo")
-        return result["response"]
-    except Exception as e:
-        st.error(f"Error getting LLM response: {str(e)}")
-        return "Sorry, I encountered an error while processing your request."
-
-def extract_code_blocks(text: str) -> List[str]:
-    code_blocks = re.findall(r'```(?:python)?\n(.*?)```', text, re.DOTALL)
-    return [block.strip() for block in code_blocks]
-
-def load_file_profile(file_path: str) -> Dict[str, Any]:
-    return {
-        "file_name": os.path.basename(file_path),
-        "file_type": "pcap" if file_path.endswith(".pcap") else "log",
-        "file_size": os.path.getsize(file_path),
-        "packet_count": 1000,
-        "protocols": ["TCP", "HTTP", "DNS"],
-        "timestamp": "2024-02-20 10:00:00"
-    }
-
-def display_file_profile(profile: Dict[str, Any]):
-    st.markdown("**File Information**", unsafe_allow_html=True)
-    st.write(f"**Filename:** {profile['file_name']}")
-    st.write(f"**File Type:** {profile['file_type']}")
-    st.write(f"**File Size:** {profile['file_size'] / 1024:.2f} KB")
-    st.write(f"**Packet Count:** {profile['packet_count']}")
-    st.write("**Protocols:**")
-    for protocol in profile['protocols']:
-        st.write(f"- {protocol}")
-    st.write(f"**Timestamp:** {profile['timestamp']}")
-
-def display_chat_interface():
-    st.markdown("<div style='font-size:1.1rem;font-weight:600;margin-bottom:8px;'>Chat</div>", unsafe_allow_html=True)
-    st.markdown("""
-        <style>
-        .chat-box {
-            height: 320px;
-            overflow-y: auto;
-            border: none;
-            border-radius: 10px;
-            padding: 18px 12px 12px 12px;
-            background-color: #fff;
-            margin-bottom: 8px;
-            box-shadow: 0 1px 6px 0 rgba(0,0,0,0.04);
-        }
-        .chat-message-card {
-            border-radius: 8px;
-            padding: 10px 14px;
-            margin-bottom: 10px;
-            max-width: 80%;
-            box-shadow: 0 1px 6px 0 rgba(0,0,0,0.04);
-            font-size: 1.01rem;
-            word-break: break-word;
-        }
-        .chat-message-user {
-            background: #e6f0ff;
-            margin-left: auto;
-            text-align: right;
-        }
-        .chat-message-assistant {
-            background: #f4f6fa;
-            margin-right: auto;
-            text-align: left;
-        }
-        .chat-input-custom {
-            width: 100%;
-            background: #f4f6fa;
-            border-radius: 8px;
-            border: none;
-            padding: 12px 16px;
-            font-size: 1rem;
-            margin-top: 8px;
-        }
-        .send-btn {
-            background: #2563eb;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 8px 18px;
-            margin-left: 8px;
-            font-size: 1.1rem;
-            cursor: pointer;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    chat_box_style = '<div class="chat-box">'
-    chat_box_end = '</div>'
-    st.markdown(chat_box_style, unsafe_allow_html=True)
-    for message in st.session_state.messages:
-        role_class = "chat-message-user" if message["role"] == "user" else "chat-message-assistant"
-        card_html = f'<div class="chat-message-card {role_class}">{message["content"]}</div>'
-        st.markdown(card_html, unsafe_allow_html=True)
-        if message["role"] == "assistant":
-            code_blocks = extract_code_blocks(message["content"])
-            if code_blocks:
-                st.session_state.code_snippets.extend(code_blocks)
-    st.markdown(chat_box_end, unsafe_allow_html=True)
-    # 입력창 (Streamlit 한계로 chat_input 사용)
-    prompt = st.chat_input("Type your message here...")
-    if prompt:
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        response = get_llm_response_sync(prompt)
-        st.session_state.messages.append({"role": "assistant", "content": response})
-        st.rerun()
-
-def display_visualization():
-    st.markdown("<div style='font-size:1.1rem;font-weight:600;margin-bottom:8px;'>Visualization</div>", unsafe_allow_html=True)
-    if st.session_state.current_file:
-        analyzer = PacketAnalyzer()
-        result = analyzer.analyze_pcap(st.session_state.current_file)
-        # 프로토콜 분포 bar chart
-        proto_dist = result["protocol_dist"]["distribution"]
-        proto_df = pd.DataFrame({
-            'Protocol': list(proto_dist.keys()),
-            'Count': list(proto_dist.values())
-        })
-        fig, ax = plt.subplots(figsize=(7, 3))
-        sns.barplot(data=proto_df, x='Protocol', y='Count', ax=ax)
-        st.pyplot(fig)
-        # 패킷 크기 분포 히스토그램
-        df = pd.DataFrame(analyzer.packets)
-        fig2, ax2 = plt.subplots(figsize=(7, 3))
-        sns.histplot(df['length'], bins=30, kde=True, ax=ax2, color='skyblue')
-        ax2.set_title('Packet Size Distribution')
-        ax2.set_xlabel('Packet Size (bytes)')
-        ax2.set_ylabel('Count')
-        st.pyplot(fig2)
-    else:
-        st.info("Analysis results will be displayed here.")
+if 'file_data' not in st.session_state:
+    st.session_state.file_data = None
 
 def main():
-    # 전체 배경 및 상단바/푸터 스타일
     st.markdown("""
         <style>
-        .main-bg {background-color: #f6f7fa;}
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 10px 6px 10px;
-            background: #fff;
-            border-bottom: 1px solid #e5e7eb;
-            margin-bottom: 12px;
-        }
-        .logo-title {
-            font-size: 1.15rem;
+        .main-header {
+            font-size: 2.5rem;
             font-weight: 700;
-            display: flex;
-            align-items: center;
+            color: #1f2937;
+            text-align: center;
+            margin-bottom: 2rem;
         }
-        .settings-btn {
-            background: #f4f6fa;
-            border: 1px solid #e5e7eb;
+        .sub-header {
+            font-size: 1.2rem;
+            color: #6b7280;
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        .code-output {
+            background: #1f2937;
+            color: #f9fafb;
             border-radius: 8px;
-            padding: 6px 16px;
-            font-size: 0.98rem;
-            cursor: pointer;
+            padding: 1rem;
+            margin: 0.5rem 0;
         }
-        .footer {
-            text-align: left;
-            color: #888;
-            font-size: 0.93rem;
-            margin-top: 24px;
-            margin-bottom: 6px;
+        .file-info {
+            background: #e0f2fe;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
         }
         </style>
-        <div class='main-bg'>
-            <div class='top-bar'>
-                <div class='logo-title'>
-                    <span style='font-size:1.15rem;margin-right:7px;'>📂</span> SysPacket Analysis Tool
-                </div>
-                <button class='settings-btn'>Settings</button>
-            </div>
-        </div>
     """, unsafe_allow_html=True)
-
-    # 3분할 레이아웃
-    left_col, middle_col, right_col = st.columns([1.15, 2.3, 1.15], gap="large")
-
-    with left_col:
-        uploaded_file = st.file_uploader("Select File", type=['pcap', 'log'])
-        st.button("Upload", use_container_width=True)
+    
+    st.markdown('<h1 class="main-header">SysPacket Analysis Tool</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Upload PCAP or Syslog files and chat with AI for analysis</p>', unsafe_allow_html=True)
+    
+    # Sidebar for file upload
+    with st.sidebar:
+        st.header("📁 File Upload")
+        
+        # Model selection
+        st.markdown("### 🤖 Model Selection")
+        use_openai = st.checkbox("Use GPT-3.5-turbo (requires OpenAI API key)", value=False)
+        
+        if use_openai:
+            st.info("Make sure to set OPENAI_API_KEY in your environment variables")
+        
+        uploaded_file = st.file_uploader(
+            "Choose a file",
+            help="Upload PCAP or Syslog files for analysis"
+        )
+        
         if uploaded_file is not None:
-            file_path = os.path.join("uploads", uploaded_file.name)
-            os.makedirs("uploads", exist_ok=True)
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            st.session_state.current_file = file_path
-            st.session_state.file_profile = load_file_profile(file_path)
-        st.markdown("<div style='margin-top:12px;'>", unsafe_allow_html=True)
-        if st.session_state.file_profile:
-            display_file_profile(st.session_state.file_profile)
-        else:
-            st.info("No file selected")
-        st.markdown("</div></div>", unsafe_allow_html=True)
+            if st.button("Process File", type="primary"):
+                with st.spinner("Processing file..."):
+                    try:
+                        # Save uploaded file
+                        file_path = Path("temp") / uploaded_file.name
+                        file_path.parent.mkdir(exist_ok=True)
+                        
+                        with open(file_path, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+                        
+                        # Determine file type
+                        file_type = 'pcap' if uploaded_file.name.endswith('.pcap') or uploaded_file.name.endswith('.pcapng') else 'log'
+                        
+                        # Initialize RAG service with model choice
+                        if 'rag_service' not in st.session_state or st.session_state.get('use_openai') != use_openai:
+                            st.session_state.rag_service = RAGService(use_openai=use_openai)
+                            st.session_state.use_openai = use_openai
+                        
+                        # Process file with RAG service
+                        file_data = st.session_state.rag_service.process_file(str(file_path), file_type)
+                        
+                        st.session_state.current_file = str(file_path)
+                        st.session_state.file_data = file_data
+                        
+                        # Reset code executor with new data
+                        st.session_state.code_executor.reset_environment()
+                        if file_type == 'pcap' or file_type == 'pcapng':
+                            st.session_state.code_executor.global_vars['packets'] = file_data['packets']
+                        else:
+                            st.session_state.code_executor.global_vars['logs'] = file_data['logs']
+                        
+                        st.success(f"File processed successfully! {len(file_data.get('packets', file_data.get('logs', [])))} records loaded.")
+                        
+                    except Exception as e:
+                        st.error(f"Error processing file: {str(e)}")
+        
+        # File info
+        if st.session_state.current_file:
+            st.markdown("### 📊 File Information")
+            context = st.session_state.rag_service.get_context()
+            st.write(f"**File:** {Path(context['current_file']).name}")
+            st.write(f"**Type:** {context['file_type']}")
+            st.write(f"**Status:** {'Ready' if context['vector_store_ready'] else 'Processing'}")
+    
+    # Main content area
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("### 💬 Chat Interface")
+        
+        # Custom CSS
+        st.markdown("""
+            <style>
+            .chat-container {
+                height: 400px;
+                overflow-y: auto;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 15px;
+                background-color: #fafafa;
+            }
+            .chat-message {
+                margin-bottom: 15px;
+                padding: 12px;
+                border-radius: 12px;
+                max-width: 85%;
+                display: flex;
+                align-items: flex-start;
+                gap: 10px;
+                word-wrap: break-word;
+            }
+            .chat-message-user {
+                background-color: #e3f2fd;
+                margin-left: auto;
+                flex-direction: row-reverse;
+            }
+            .chat-message-assistant {
+                background-color: #f5f5f5;
+                margin-right: auto;
+            }
+            .chat-emoji {
+                font-size: 1.5rem;
+                flex-shrink: 0;
+            }
+            .chat-content {
+                flex: 1;
+                line-height: 1.4;
+            }
+            .chat-input-area {
+                border-top: 1px solid #e0e0e0;
+                padding-top: 15px;
+                margin-top: 15px;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+          
+        # Display existing messages
+        for message in st.session_state.messages:
+            if message["role"] == "user":
+                emoji = "🙋"
+                role_class = "chat-message-user"
+            else:
+                emoji = "🤖"
+                role_class = "chat-message-assistant"
 
-    with middle_col:
-        display_chat_interface()
-        st.markdown("</div>", unsafe_allow_html=True)
+            # Chat message output
+            st.markdown(f'''
+                <div class="chat-message {role_class}">
+                    <div class="chat-emoji">{emoji}</div>
+                    <div class="chat-content">{message["content"]}</div>
+                </div>
+            ''', unsafe_allow_html=True)
 
-    with right_col:
-        display_visualization()
-        st.markdown("</div>", unsafe_allow_html=True)
+            # Code execution results output
+            if message.get("code_results"):
+                st.markdown("**Code Execution Results:**")
+                for result in message["code_results"]["results"]:
+                    if result["success"]:
+                        if result["stdout"]:
+                            st.code(result["stdout"], language="text")
+                        if result["figures"]:
+                            for fig in result["figures"]:
+                                st.image(BytesIO(fig["image_data"]), caption=f"Figure {fig['figure_number']}")
+                    else:
+                        st.error(f"Code execution failed: {result['error']['message']}")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Chat input area
+        st.markdown('<div class="chat-input-area">', unsafe_allow_html=True)
+        prompt = st.chat_input("Ask about your file...")
+        
+        if prompt:
+            if not st.session_state.current_file:
+                st.error("Please upload and process a file first.")
+                st.stop()
 
-    # Footer
-    st.markdown("""
-        <div class='footer'>
-            © 2025 SysPacket. All rights reserved.
-        </div>
-    """, unsafe_allow_html=True)
+            # 사용자 메시지 추가
+            st.session_state.messages.append({"role": "user", "content": prompt})
+
+            with st.spinner("Thinking..."):
+                response = st.session_state.rag_service.query(prompt)
+
+                # 코드 실행
+                code_results = st.session_state.code_executor.execute_from_response(
+                    response,
+                    st.session_state.code_executor.global_vars
+                )
+
+                # 어시스턴트 응답 추가
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": response,
+                    "code_results": code_results if code_results["has_code"] else None
+                })
+
+            # 화면 새로고침
+            st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("### 📈 Quick Analysis")
+        
+        if st.session_state.file_data:
+            file_type = "pcap" if "packets" in st.session_state.file_data else "log"
+            
+            if file_type == "pcap":
+                packets = st.session_state.file_data["packets"]
+                if packets:
+                    # Protocol distribution
+                    protocols = {}
+                    for packet in packets:
+                        protocol = packet.get('protocol', 'Unknown')
+                        protocols[protocol] = protocols.get(protocol, 0) + 1
+                    
+                    st.markdown("**Protocol Distribution**")
+                    protocol_df = pd.DataFrame(list(protocols.items()), columns=['Protocol', 'Count'])
+                    st.bar_chart(protocol_df.set_index('Protocol'))
+                    
+                    # Packet size distribution
+                    sizes = [p.get('length', 0) for p in packets]
+                    st.markdown("**Packet Size Distribution**")
+                    fig, ax = plt.subplots(figsize=(6, 4))
+                    ax.hist(sizes, bins=30, alpha=0.7)
+                    ax.set_xlabel('Packet Size (bytes)')
+                    ax.set_ylabel('Count')
+                    st.pyplot(fig)
+                    plt.close()
+            
+            else:  # log files
+                logs = st.session_state.file_data["logs"]
+                if logs:
+                    # Severity distribution
+                    severities = {}
+                    for log in logs:
+                        severity = log.get('severity', 'unknown')
+                        severities[severity] = severities.get(severity, 0) + 1
+                    
+                    st.markdown("**Log Severity Distribution**")
+                    severity_df = pd.DataFrame(list(severities.items()), columns=['Severity', 'Count'])
+                    st.bar_chart(severity_df.set_index('Severity'))
+        
+        # Available variables
+        if st.session_state.code_executor.global_vars:
+            st.markdown("### 🔧 Available Variables")
+            for var_name in st.session_state.code_executor.global_vars.keys():
+                if not var_name.startswith('_'):
+                    st.write(f"• `{var_name}`")
+    
+    # Clear chat button
+    if st.session_state.messages and st.button("Clear Chat"):
+        st.session_state.messages = []
+        st.rerun()
 
 if __name__ == "__main__":
     main()
