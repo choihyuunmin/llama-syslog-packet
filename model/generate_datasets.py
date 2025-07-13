@@ -15,6 +15,9 @@ from pathlib import Path
 import numpy as np
 from openai import OpenAI
 from rouge_score import rouge_scorer
+import shutil
+import asyncio
+import httpx
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
 from processors.pcap_processor import PcapProcessor
@@ -26,25 +29,38 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+DEFAULT_CONFIG = {
+    "max_tokens": 8192,
+    "temperature": 1.0,
+    "top_p": 1.0,
+    "n": 1,
+    "stream": False,
+    "presence_penalty": 0.0,
+    "frequency_penalty": 0.0,
+    "num_instructions_to_generate": 100,
+    "num_prompt_instructions": 3,
+    "num_cpus": 16,
+    "model_name": "gpt-4o-mini",
+    "output_dir": "processed"
+}
+
 @dataclasses.dataclass
 class OpenAIDecodingArguments:
-    max_tokens: int = 1800
-    temperature: float = 0.2
-    top_p: float = 1.0
-    n: int = 1
-    stream: bool = False
+    max_tokens: int = DEFAULT_CONFIG["max_tokens"]
+    temperature: float = DEFAULT_CONFIG["temperature"]
+    top_p: float = DEFAULT_CONFIG["top_p"]
+    n: int = DEFAULT_CONFIG["n"]
+    stream: bool = DEFAULT_CONFIG["stream"]
     stop: list = None
-    presence_penalty: float = 0.0
-    frequency_penalty: float = 0.0
+    presence_penalty: float = DEFAULT_CONFIG["presence_penalty"]
+    frequency_penalty: float = DEFAULT_CONFIG["frequency_penalty"]
 
-def openai_completion(
+async def openai_completion(
     prompts,
     decoding_args,
     model_name,
     sleep_time=2,
     batch_size=1,
-    max_instances=sys.maxsize,
-    max_batches=sys.maxsize,
     return_text=False,
     **decoding_kwargs,
 ):
@@ -52,65 +68,110 @@ def openai_completion(
     if is_single_prompt:
         prompts = [prompts]
 
-    if max_batches < sys.maxsize:
-        logging.warning(
-            "`max_batches` will be deprecated in the future, please use `max_instances` instead."
-            "Setting `max_instances` to `max_batches * batch_size` for now."
-        )
-        max_instances = max_batches * batch_size
-
-    prompts = prompts[:max_instances]
     num_prompts = len(prompts)
     prompt_batches = [
         prompts[batch_id * batch_size : (batch_id + 1) * batch_size]
         for batch_id in range(int(np.ceil(num_prompts / batch_size)))
     ]
 
-    client = OpenAI()
     completions = []
-    for prompt_batch in prompt_batches:
-        batch_decoding_args = copy.deepcopy(decoding_args)
+    async with httpx.AsyncClient() as client:
+        for prompt_batch in prompt_batches:
+            batch_decoding_args = copy.deepcopy(decoding_args)
 
-        while True:
-            try:
-                shared_kwargs = {
-                    "model": model_name,
-                    "max_tokens": batch_decoding_args.max_tokens,
-                    "temperature": batch_decoding_args.temperature,
-                    "top_p": batch_decoding_args.top_p,
-                    "n": batch_decoding_args.n,
-                    "stream": batch_decoding_args.stream,
-                    "stop": batch_decoding_args.stop,
-                    "presence_penalty": batch_decoding_args.presence_penalty,
-                    "frequency_penalty": batch_decoding_args.frequency_penalty,
-                }
-                
-                # Convert prompts to messages format for chat completion
-                messages = [{"role": "user", "content": prompt} for prompt in prompt_batch]
-                
-                completion_batch = client.chat.completions.create(
-                    messages=messages,
-                    **shared_kwargs
-                )
-                
-                choices = []
-                for choice in completion_batch.choices:
-                    choices.append({
-                        "text": choice.message.content,
-                        "finish_reason": choice.finish_reason,
-                        "total_tokens": completion_batch.usage.total_tokens
-                    })
-                
-                completions.extend(choices)
-                break
-            except Exception as e:
-                logging.warning(f"OpenAIError: {e}.")
-                if "Please reduce your prompt" in str(e):
-                    batch_decoding_args.max_tokens = int(batch_decoding_args.max_tokens * 0.8)
-                    logging.warning(f"Reducing target length to {batch_decoding_args.max_tokens}, Retrying...")
-                else:
-                    logging.warning("Hit request rate limit; retrying...")
-                    time.sleep(sleep_time)
+            while True:
+                skip_batch = False
+                for prompt in prompt_batch:
+                    if isinstance(prompt, dict):
+                        prompt_text = prompt.get('content', str(prompt))
+                    else:
+                        prompt_text = str(prompt)
+                    token_count = len(prompt_text.split())
+                    if token_count > 100000:
+                        logging.warning(f"[SKIP] 입력 프롬프트 토큰 수({token_count})가 100,000을 초과하여 요청을 건너뜁니다.")
+                        skip_batch = True
+                        break
+                if skip_batch:
+                    break  # while True 루프까지 빠져나감
+
+                try:
+                    shared_kwargs = {
+                        "model": model_name,
+                        "max_tokens": batch_decoding_args.max_tokens,
+                        "temperature": batch_decoding_args.temperature,
+                        "top_p": batch_decoding_args.top_p,
+                        "n": batch_decoding_args.n,
+                        "stream": batch_decoding_args.stream,
+                        "stop": batch_decoding_args.stop,
+                        "presence_penalty": batch_decoding_args.presence_penalty,
+                        "frequency_penalty": batch_decoding_args.frequency_penalty,
+                    }
+                    messages = [{"role": "user", "content": prompt} for prompt in prompt_batch]
+
+                    print("=" * 80)
+                    print("input messages", messages)
+                    print("=" * 80)
+
+                    # OpenAI API 비동기 호출
+                    response = await client.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": shared_kwargs["model"],
+                            "messages": messages,
+                            "max_tokens": shared_kwargs["max_tokens"],
+                            "temperature": shared_kwargs["temperature"],
+                            "top_p": shared_kwargs["top_p"],
+                            "n": shared_kwargs["n"],
+                            "stream": shared_kwargs["stream"],
+                            "stop": shared_kwargs["stop"],
+                            "presence_penalty": shared_kwargs["presence_penalty"],
+                            "frequency_penalty": shared_kwargs["frequency_penalty"],
+                        },
+                        timeout=60.0
+                    )
+                    if response.status_code != 200:
+                        err_msg = response.text
+                        logging.warning(f"OpenAIError: {err_msg}.")
+                        if ("context length" in err_msg or "maximum context length" in err_msg or "context_length_exceeded" in err_msg):
+                            logging.warning("[SKIP] OpenAI context length 초과 에러로 해당 배치를 건너뜁니다.")
+                            break
+                        if "Please reduce your prompt" in err_msg:
+                            batch_decoding_args.max_tokens = int(batch_decoding_args.max_tokens * 0.8)
+                            logging.warning(f"Reducing target length to {batch_decoding_args.max_tokens}, Retrying...")
+                        else:
+                            logging.warning("Hit request rate limit or other error; retrying...")
+                            await asyncio.sleep(sleep_time)
+                        continue
+                    completion_batch = response.json()
+                    choices = []
+                    for choice in completion_batch["choices"]:
+                        choices.append({
+                            "text": choice["message"]["content"],
+                            "finish_reason": choice["finish_reason"],
+                            "total_tokens": completion_batch["usage"]["total_tokens"]
+                        })
+
+                    print("=" * 80)
+                    print("output choices", choices)
+                    print("=" * 80)
+                    completions.extend(choices)
+                    break
+                except Exception as e:
+                    err_msg = str(e)
+                    logging.warning(f"OpenAIError: {err_msg}.")
+                    if ("context length" in err_msg or "maximum context length" in err_msg or "context_length_exceeded" in err_msg):
+                        logging.warning("[SKIP] OpenAI context length 초과 에러로 해당 배치를 건너뜁니다.")
+                        break
+                    if "Please reduce your prompt" in err_msg:
+                        batch_decoding_args.max_tokens = int(batch_decoding_args.max_tokens * 0.8)
+                        logging.warning(f"Reducing target length to {batch_decoding_args.max_tokens}, Retrying...")
+                    else:
+                        logging.warning("Hit request rate limit; retrying...")
+                        await asyncio.sleep(sleep_time)
 
     if return_text:
         completions = [completion["text"] for completion in completions]
@@ -123,20 +184,18 @@ def openai_completion(
 class DatasetGenerator:
     def __init__(
         self,
-        output_dir="processed",
-        model_name="gpt-4o-mini",
-        num_instructions_to_generate=100,
-        num_prompt_instructions=3,
-        request_batch_size=2,
-        temperature=1.0,
-        top_p=1.0,
-        num_cpus=16,
+        output_dir=DEFAULT_CONFIG["output_dir"],
+        model_name=DEFAULT_CONFIG["model_name"],
+        num_instructions_to_generate=DEFAULT_CONFIG["num_instructions_to_generate"],
+        num_prompt_instructions=DEFAULT_CONFIG["num_prompt_instructions"],
+        temperature=DEFAULT_CONFIG["temperature"],
+        top_p=DEFAULT_CONFIG["top_p"],
+        num_cpus=DEFAULT_CONFIG["num_cpus"],
     ):
         self.output_dir = Path(output_dir)
         self.model_name = model_name
         self.num_instructions_to_generate = num_instructions_to_generate
         self.num_prompt_instructions = num_prompt_instructions
-        self.request_batch_size = request_batch_size
         self.temperature = temperature
         self.top_p = top_p
         self.num_cpus = num_cpus
@@ -145,14 +204,21 @@ class DatasetGenerator:
         self.scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
         
     def encode_prompt(self, prompt_instructions, context_data=None):
-        prompt = """You are a network security expert. Generate question-answer pairs about network packet and system log analysis.
-                    Each response should be in the following JSON format:
+        prompt = """You are an expert in analyzing network packets and Linux system logs (syslog).
+For each prompt, respond with only one of the following four types of tasks:
+1) Simple Analysis – Provide a brief summary or insight based on the given data.
+2) Expert Analysis – Offer an in-depth technical explanation, including implications or potential issues.
+3) Python Code Generation – Write Python code that performs parsing, analysis, or automation related to the data.
+4) System Configuration Documentation – Describe system-level configurations, settings, or best practices.
+
+                    Important:
+                    Respond in JSON format as shown below:
+
                     {
                         "instruction": "your question here",
                         "input": "context_data",
                         "output": "your answer here"
                     }
-
                 """
         
         if context_data:
@@ -160,7 +226,7 @@ class DatasetGenerator:
                 sample_data = context_data["pcap_data"]
             
             if "syslog_data" in context_data:
-                sample_data = context_data["syslog_data"][:5]
+                sample_data = context_data["syslog_data"]
         
         prompt += "\nHere are some examples of question-answer pairs:\n\n"
         
@@ -168,9 +234,9 @@ class DatasetGenerator:
             question = task_dict["instruction"]
             answer = task_dict["output"]
             
-            prompt += f"Example {idx + 1}:\n"
+            prompt += f"Example:\n"
             prompt += f"Instruction: {question}\n"
-            prompt += f"Input: {sample_data[:5]}\n"
+            prompt += f"Input: {sample_data}\n"
             prompt += f"Output: {answer}\n\n"
             
         prompt += "Now generate a new question-answer pair in the same JSON format based on the provided data:\n"
@@ -214,76 +280,65 @@ class DatasetGenerator:
             logger.warning(f"Failed to parse GPT response: {e}")
             return []
     
-    def generate_additional_instructions(
+    async def generate_additional_instructions(
         self,
         seed_instructions,
         context_data=None,
-        existing_instructions=None
     ):
-        if existing_instructions is None:
-            existing_instructions = []
-            
-        all_instructions = [d["instruction"] for d in seed_instructions] + [
-            d["instruction"] for d in existing_instructions
-        ]
+        all_instructions = [d["instruction"] for d in seed_instructions]
         all_instruction_tokens = [
             self.scorer._tokenizer.tokenize(inst) for inst in all_instructions
         ]
         
-        request_idx = 0
-        while len(existing_instructions) < self.num_instructions_to_generate:
-            request_idx += 1
-            batch_inputs = []
-            
-            prompt_instructions = random.sample(seed_instructions, self.num_prompt_instructions)
-            prompt = self.encode_prompt(prompt_instructions, context_data)
+        batch_inputs = []
+        prompt_instructions = random.sample(seed_instructions, self.num_prompt_instructions)
+        # 각 프롬프트 예시를 개별적으로 encode_prompt에 넘김
+        for single_instruction in prompt_instructions:
+            prompt = self.encode_prompt([single_instruction], context_data)
             batch_inputs.append(prompt)
-                
-            decoding_args = OpenAIDecodingArguments(
-                temperature=self.temperature,
-                n=1,
-                max_tokens=5072,
-                top_p=self.top_p,
-                stop=["\n20", "20.", "20."]
+            
+        decoding_args = OpenAIDecodingArguments(
+            temperature=self.temperature,
+            n=DEFAULT_CONFIG["n"],
+            max_tokens=DEFAULT_CONFIG["max_tokens"],
+            top_p=self.top_p,
+        )
+        
+        try:
+            results = await openai_completion(
+                prompts=batch_inputs,
+                model_name=self.model_name,
+                decoding_args=decoding_args
             )
             
-            try:
-                results = openai_completion(
-                    prompts=batch_inputs,
-                    model_name=self.model_name,
-                    batch_size=self.request_batch_size,
-                    decoding_args=decoding_args
-                )
+            instruction_data = []
+            for result in results:
+                new_instructions = self.post_process_gpt3_response(result)
+                instruction_data += new_instructions
                 
-                instruction_data = []
-                for result in results:
-                    new_instructions = self.post_process_gpt3_response(result)
-                    instruction_data += new_instructions
+            total = len(instruction_data)
+            keep = 0
+            
+            for instruction_data_entry in instruction_data:
+                question = instruction_data_entry["instruction"]
+                
+                # Skip if question already exists
+                if question in all_instructions:
+                    continue
                     
-                total = len(instruction_data)
-                keep = 0
+                keep += 1
+                all_instructions.append(question)
+                all_instruction_tokens.append(self.scorer._tokenizer.tokenize(question))
                 
-                for instruction_data_entry in instruction_data:
-                    question = instruction_data_entry["instruction"]
-                    
-                    # Skip if question already exists
-                    if question in all_instructions:
-                        continue
-                        
-                    keep += 1
-                    existing_instructions.append(instruction_data_entry)
-                    all_instructions.append(question)
-                    all_instruction_tokens.append(self.scorer._tokenizer.tokenize(question))
-                    
-                logger.info(f"Generated {total} instructions, kept {keep} instructions")
+            logger.info(f"Generated {total} instructions, kept {keep} instructions")
+            
+        except Exception as e:
+            logger.error(f"Error occurred while generating additional questions: {e}")
+            raise
                 
-            except Exception as e:
-                logger.error(f"Error occurred while generating additional questions: {e}")
-                raise
-                
-        return existing_instructions
+        return instruction_data
     
-    def generate_pcap_dataset(self, pcap_file):
+    async def generate_pcap_dataset(self, pcap_file):
         try:            
             # PCAP 프로세서 초기화 및 처리
             processor = PcapProcessor(pcap_file)
@@ -307,7 +362,7 @@ class DatasetGenerator:
                 return None
             
             # 추가 질문 생성
-            new_instructions = self.generate_additional_instructions(
+            new_instructions = await self.generate_additional_instructions(
                 seed_instructions,
                 context_data=context_data
             )
@@ -336,6 +391,10 @@ class DatasetGenerator:
             output_path = self._get_output_path("pcap_dataset")
             self._save_dataset(all_instructions, output_path)
             
+            # === 원본 파일 completed/로 이동 ===
+            completed_dir = self.output_dir / "completed"
+            completed_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(pcap_file, completed_dir / Path(pcap_file).name)
             logger.info(f"PCAP dataset generation completed: {output_path}")
             return output_path
             
@@ -343,7 +402,7 @@ class DatasetGenerator:
             logger.error(f"Error occurred while generating PCAP dataset: {e}")
             raise
     
-    def generate_syslog_dataset(self, syslog_file):
+    async def generate_syslog_dataset(self, syslog_file):
         try:
             # Syslog 프로세서 초기화 및 처리
             processor = SyslogProcessor(syslog_file)
@@ -361,7 +420,7 @@ class DatasetGenerator:
             }
             
             # 추가 질문 생성
-            new_instructions = self.generate_additional_instructions(
+            new_instructions = await self.generate_additional_instructions(
                 seed_instructions,
                 context_data=context_data
             )
@@ -389,6 +448,10 @@ class DatasetGenerator:
             output_path = self._get_output_path("syslog_dataset")
             self._save_dataset(all_instructions, output_path)
             
+            # === 원본 파일 completed/로 이동 ===
+            completed_dir = self.output_dir / "completed"
+            completed_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(syslog_file, completed_dir / Path(syslog_file).name)
             logger.info(f"Syslog dataset generation completed: {output_path}")
             return output_path
             
@@ -423,16 +486,15 @@ def find_target_files(root_path):
         if file_path.is_file():
             yield file_path
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="packet/syslog 데이터셋 생성기")
     parser.add_argument("--pcap-dir", type=str, help="PCAP 파일이 있는 디렉토리 경로")
     parser.add_argument("--syslog-dir", type=str, help="Syslog 파일이 있는 디렉토리 경로")
-    parser.add_argument("--output-dir", type=str, default="processed", help="출력 디렉토리")
-    parser.add_argument("--model-name", type=str, default="gpt-4o-mini", help="사용할 GPT 모델 이름")
-    parser.add_argument("--num-instructions", type=int, default=100, help="생성할 추가 질문 수")
-    parser.add_argument("--num-prompt-instructions", type=int, default=3, help="프롬프트에 사용할 예시 질문 수")
-    parser.add_argument("--request-batch-size", type=int, default=2, help="한 번에 처리할 요청 수")
-    parser.add_argument("--temperature", type=float, default=1.0, help="생성 다양성 조절")
+    parser.add_argument("--output-dir", type=str, default=DEFAULT_CONFIG["output_dir"], help="출력 디렉토리")
+    parser.add_argument("--model-name", type=str, default=DEFAULT_CONFIG["model_name"], help="사용할 GPT 모델 이름")
+    parser.add_argument("--num-instructions", type=int, default=DEFAULT_CONFIG["num_instructions_to_generate"], help="생성할 추가 질문 수")
+    parser.add_argument("--num-prompt-instructions", type=int, default=DEFAULT_CONFIG["num_prompt_instructions"], help="프롬프트에 사용할 예시 질문 수")
+    parser.add_argument("--temperature", type=float, default=DEFAULT_CONFIG["temperature"], help="생성 다양성 조절")
     
     args = parser.parse_args()
     
@@ -443,10 +505,9 @@ def main():
             model_name=args.model_name,
             num_instructions_to_generate=args.num_instructions,
             num_prompt_instructions=args.num_prompt_instructions,
-            request_batch_size=args.request_batch_size,
             temperature=args.temperature,
-            top_p=1.0,
-            num_cpus=16
+            top_p=DEFAULT_CONFIG["top_p"],
+            num_cpus=DEFAULT_CONFIG["num_cpus"]
         )
         
         # PCAP 파일 처리
@@ -459,7 +520,7 @@ def main():
                 logger.info(f"Found {len(pcap_files)} PCAP files.")
                 for file_path in pcap_files:
                     try:
-                        generator.generate_pcap_dataset(str(file_path))
+                        await generator.generate_pcap_dataset(str(file_path))
                     except Exception as e:
                         logger.error(f"Error occurred while processing PCAP file ({file_path}): {e}")
                         continue
@@ -475,7 +536,7 @@ def main():
                 logger.info(f"Found {len(syslog_files)} Syslog files.")
                 for file_path in syslog_files:
                     try:
-                        generator.generate_syslog_dataset(str(file_path))
+                        await generator.generate_syslog_dataset(str(file_path))
                     except Exception as e:
                         logger.error(f"Error occurred while processing Syslog file ({file_path}): {e}")
                         continue
@@ -486,4 +547,4 @@ def main():
         raise
 
 if __name__ == "__main__":
-    main() 
+    asyncio.run(main()) 

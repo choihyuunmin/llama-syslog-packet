@@ -4,10 +4,6 @@ import logging
 import os
 import pandas as pd
 from pathlib import Path
-import numpy as np
-from datetime import datetime
-import matplotlib.pyplot as plt
-import seaborn as sns
 from evaluator import BenchmarkEvaluator
 from typing import List, Dict, Any
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -175,7 +171,6 @@ def main():
     # 모델 설정
     models = [
         LlamaModel("LlamaTrace", "choihyuunmin/LlamaTrace"),
-        LlamaModel("LlamaTrace-3B", "choihyuunmin/LlamaTrace-3B"),
         LlamaModel("Llama-3-8B-Instruct", "meta-llama/Meta-Llama-3-8B-Instruct"),
         OpenAIModel("gpt-4o", os.getenv("OPENAI_API_KEY"))
     ]

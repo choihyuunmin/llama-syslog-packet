@@ -3,12 +3,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 from io import BytesIO
+import re
 
 from web.app.services.rag_service import RAGService
 from web.app.services.code_executor import CodeExecutor
 
 st.set_page_config(
-    page_title="SysPacket Analysis Tool",
+    page_title="LLaMa-PcapLog Chat Service",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -56,7 +57,7 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    st.markdown('<h1 class="main-header">SysPacket Analysis Tool</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">LLaMa-PcapLog Chat Service</h1>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Upload PCAP or Syslog files and chat with AI for analysis</p>', unsafe_allow_html=True)
     
     # Sidebar for file upload
@@ -65,7 +66,7 @@ def main():
         
         # Model selection
         st.markdown("### 🤖 Model Selection")
-        use_openai = st.checkbox("Use GPT-3.5-turbo (requires OpenAI API key)", value=False)
+        use_openai = st.checkbox("Use GPT (requires OpenAI API key)", value=False)
         
         if use_openai:
             st.info("Make sure to set OPENAI_API_KEY in your environment variables")
@@ -130,6 +131,8 @@ def main():
         st.markdown("""
             <style>
             .chat-container {
+                width: 100%;
+                max-width: 900px;
                 height: 400px;
                 overflow-y: auto;
                 border: 1px solid #e0e0e0;
@@ -137,16 +140,20 @@ def main():
                 padding: 15px;
                 margin-bottom: 15px;
                 background-color: #fafafa;
+                margin-left: auto;
+                margin-right: auto;
             }
             .chat-message {
                 margin-bottom: 15px;
                 padding: 12px;
                 border-radius: 12px;
-                max-width: 85%;
+                max-width: 100%;
+                width: fit-content;
                 display: flex;
                 align-items: flex-start;
                 gap: 10px;
-                word-wrap: break-word;
+                word-break: break-word;
+                box-sizing: border-box;
             }
             .chat-message-user {
                 background-color: #e3f2fd;
@@ -164,6 +171,8 @@ def main():
             .chat-content {
                 flex: 1;
                 line-height: 1.4;
+                overflow-wrap: break-word;
+                word-break: break-word;
             }
             .chat-input-area {
                 border-top: 1px solid #e0e0e0;
@@ -174,21 +183,52 @@ def main():
         """, unsafe_allow_html=True)
           
         # Display existing messages
-        for message in st.session_state.messages:
+        for idx, message in enumerate(st.session_state.messages):
             if message["role"] == "user":
                 emoji = "🙋"
                 role_class = "chat-message-user"
+                st.markdown(f'''
+                    <div class="chat-message {role_class}">
+                        <div class="chat-emoji">{emoji}</div>
+                        <div class="chat-content">{message["content"]}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
             else:
                 emoji = "🤖"
                 role_class = "chat-message-assistant"
-
-            # Chat message output
-            st.markdown(f'''
-                <div class="chat-message {role_class}">
-                    <div class="chat-emoji">{emoji}</div>
-                    <div class="chat-content">{message["content"]}</div>
-                </div>
-            ''', unsafe_allow_html=True)
+                content = message["content"]
+                # 질문이 답변 맨 앞에 포함되어 있으면 제거
+                if idx > 0 and st.session_state.messages[idx-1]["role"] == "user":
+                    user_prompt = st.session_state.messages[idx-1]["content"].strip()
+                    if content.strip().startswith(user_prompt):
+                        content = content.strip()[len(user_prompt):].lstrip("\n: ")
+                # 코드블록 분리 및 출력
+                code_block_pattern = r"```(\w+)?\n([\s\S]*?)```"
+                last_end = 0
+                for match in re.finditer(code_block_pattern, content):
+                    # 코드블록 앞의 텍스트 출력
+                    text_part = content[last_end:match.start()]
+                    if text_part.strip():
+                        st.markdown(f'''
+                            <div class="chat-message {role_class}">
+                                <div class="chat-emoji">{emoji}</div>
+                                <div class="chat-content">{text_part.strip()}</div>
+                            </div>
+                        ''', unsafe_allow_html=True)
+                    code_lang = match.group(1) or "python"
+                    code_content = match.group(2)
+                    st.code(code_content, language=code_lang)
+                    last_end = match.end()
+                # 마지막 남은 텍스트 출력
+                if last_end < len(content):
+                    text_part = content[last_end:]
+                    if text_part.strip():
+                        st.markdown(f'''
+                            <div class="chat-message {role_class}">
+                                <div class="chat-emoji">{emoji}</div>
+                                <div class="chat-content">{text_part.strip()}</div>
+                            </div>
+                        ''', unsafe_allow_html=True)
 
             # Code execution results output
             if message.get("code_results"):

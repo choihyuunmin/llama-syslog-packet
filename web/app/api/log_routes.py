@@ -10,9 +10,7 @@ syslog_analyzer = SyslogAnalyzer()
 
 @router.post("/upload-syslog")
 async def upload_syslog(file: UploadFile = File(...)) -> Dict[str, Any]:
-    """Syslog 파일 업로드 및 분석 엔드포인트"""
     try:
-        # 파일 저장
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         file_path = Path("uploads") / f"{timestamp}_{file.filename}"
         
@@ -20,7 +18,6 @@ async def upload_syslog(file: UploadFile = File(...)) -> Dict[str, Any]:
             content = await file.read()
             buffer.write(content)
         
-        # 파일 분석
         analysis_result = syslog_analyzer.analyze_syslog(str(file_path))
         
         return {
@@ -33,14 +30,11 @@ async def upload_syslog(file: UploadFile = File(...)) -> Dict[str, Any]:
 
 @router.post("/analyze-syslog")
 async def analyze_syslog(file_id: str, filename: str) -> Dict[str, Any]:
-    """Syslog 파일 분석 엔드포인트"""
     try:
-        # 파일 경로 확인
         file_path = Path("uploads") / f"{file_id}_{filename}"
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
         
-        # 로그 분석
         analysis_result = syslog_analyzer.analyze_syslog(str(file_path))
         
         return analysis_result

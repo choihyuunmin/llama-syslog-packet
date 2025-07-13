@@ -59,19 +59,19 @@ settings = Settings()
 
 # 사용 가능한 모델 정의
 AVAILABLE_MODELS: Dict[str, Dict[str, str]] = {
-    "LlamaTrace": {
-        "name": "choihyuunmin/LlamaTrace",
+    "LLaMa-PcapLog": {
+        "name": "choihyuunmin/LLaMa-PcapLog",
         "description": "syslog, packet 분석 모델",
-        "type": "llama"
-    },
-    "LlamaTrace-3B": {
-        "name": "choihyuunmin/LlamaTrace-3B",
-        "description": "syslog, packet 분석 경량화 모델",
         "type": "llama"
     },
     "gpt-4o": {
         "name": "gpt-4o",
         "description": "gpt-4o 모델",
         "type": "gpt"
+    },
+    "LlamaTrace": {
+        "name": "choihyuunmin/LlamaTrace",
+        "description": "syslog, packet 분석 모델",
+        "type": "llama"
     }
 } 

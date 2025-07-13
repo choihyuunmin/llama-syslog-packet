@@ -1,76 +1,78 @@
+import os
+import glob
+from typing import List
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import glob
-import os
 
-# 현재 스크립트의 디렉토리 경로 가져오기
-current_dir = os.path.dirname(os.path.abspath(__file__))
-result_dir = os.path.join(current_dir, 'result')
+def plot_model_metrics_from_csv(
+    result_dir: str,
+    output_path: str = "model_performance_metrics.png"
+) -> None:
+    """results 폴더 내 CSV 파일을 읽어 모델별 metric 평균을 계산하고, 그룹형 막대그래프를 저장합니다.
 
-# Seaborn 스타일 설정
-plt.style.use('seaborn')
-sns.set_style("whitegrid")
-plt.rcParams['font.family'] = 'Arial'
-plt.rcParams['font.size'] = 12
-plt.rcParams['axes.labelsize'] = 14
-plt.rcParams['axes.titlesize'] = 16
-plt.rcParams['xtick.labelsize'] = 12
-plt.rcParams['ytick.labelsize'] = 12
+    Args:
+        result_dir (str): CSV 파일들이 위치한 폴더 경로 (예: 'evaluation/result')
+        output_path (str): 저장할 그래프 이미지 파일 경로
 
-# CSV 파일들을 읽어서 데이터프레임으로 변환
-csv_files = glob.glob(os.path.join(result_dir, '*.csv'))
-dfs = []
+    Raises:
+        FileNotFoundError: result_dir가 존재하지 않거나, CSV 파일이 없을 때
+        ValueError: 필요한 metric 컬럼이 없을 때
 
-for file in csv_files:
-    df = pd.read_csv(file)
-    dfs.append(df)
+    Example:
+        plot_model_metrics_from_csv("evaluation/result", "output.png")
+    """
+    # 1. CSV 파일 수집
+    if not os.path.isdir(result_dir):
+        raise FileNotFoundError(f"폴더가 존재하지 않습니다: {result_dir}")
+    csv_files: List[str] = glob.glob(os.path.join(result_dir, "*.csv"))
+    if not csv_files:
+        raise FileNotFoundError(f"CSV 파일이 없습니다: {result_dir}")
 
-# 모든 데이터프레임을 하나로 합치기
-combined_df = pd.concat(dfs, ignore_index=True)
+    # 2. 데이터프레임 합치기
+    dfs = [pd.read_csv(f) for f in csv_files]
+    df = pd.concat(dfs, ignore_index=True)
 
-# pass@1을 제외한 메트릭들의 평균 계산
-metrics = ['f1_score', 'rouge1', 'rouge2', 'rougeL', 'cosine_similarity', 'numeric_mae', 'numeric_mse']
-avg_metrics = combined_df.groupby('model')[metrics].mean()
+    # 3. 사용할 metric 정의
+    metric_map = {
+        "ROUGE-1": "rouge1",
+        "ROUGE-2": "rouge2",
+        "ROUGE-L": "rougeL",
+        "Cosine": "cosine_similarity",
+        "F1": "f1_score",
+    }
+    required_columns = list(metric_map.values()) + ["model"]
+    for col in required_columns:
+        if col not in df.columns:
+            raise ValueError(f"필수 컬럼이 없습니다: {col}")
 
-# numeric_mae와 numeric_mse는 다른 메트릭들과 스케일이 다르므로 별도로 처리
-numeric_metrics = ['numeric_mae', 'numeric_mse']
-other_metrics = [m for m in metrics if m not in numeric_metrics]
+    # 4. 모델별 metric 평균 계산
+    avg_df = df.groupby("model")[list(metric_map.values())].mean().reset_index()
 
-# 다른 메트릭들의 평균 계산
-avg_other_metrics = avg_metrics[other_metrics].mean(axis=1)
+    # 5. 시각화를 위한 데이터 변환 (wide → long)
+    plot_df = avg_df.melt(id_vars="model", var_name="Metric", value_name="Score")
+    plot_df["Metric"] = plot_df["Metric"].map({v: k for k, v in metric_map.items()})
 
-# 시각화 - 일반 메트릭
-plt.figure(figsize=(10, 6))
-ax = avg_other_metrics.plot(kind='bar', color=sns.color_palette("husl", len(avg_other_metrics)))
-plt.title('Average Performance Metrics by Model', pad=20)
-plt.xlabel('Model', labelpad=10)
-plt.ylabel('Average Score', labelpad=10)
-plt.xticks(rotation=45, ha='right')
-plt.grid(True, linestyle='--', alpha=0.7)
+    # 6. 시각화
+    plt.figure(figsize=(12, 6))
+    sns.set_style("whitegrid")
+    ax = sns.barplot(
+        data=plot_df,
+        x="Metric",
+        y="Score",
+        hue="model",
+        palette="deep"
+    )
+    plt.title("Model Performance Metrics Comparison (ROUGE, Cosine, F1)", pad=16)
+    plt.xlabel("Metrics")
+    plt.ylabel("Score")
+    plt.legend(title="Model")
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"그래프가 저장되었습니다: {output_path}")
 
-# 값 레이블 추가
-for i, v in enumerate(avg_other_metrics):
-    ax.text(i, v, f'{v:.3f}', ha='center', va='bottom')
-
-plt.tight_layout()
-plt.savefig(os.path.join(current_dir, 'average_metrics.png'), dpi=300, bbox_inches='tight')
-
-# numeric_mae와 numeric_mse 시각화
-plt.figure(figsize=(10, 6))
-ax = avg_metrics[numeric_metrics].plot(kind='bar', color=sns.color_palette("Set2", len(numeric_metrics)))
-plt.title('Numeric Error Metrics by Model', pad=20)
-plt.xlabel('Model', labelpad=10)
-plt.ylabel('Error Score', labelpad=10)
-plt.xticks(rotation=45, ha='right')
-plt.grid(True, linestyle='--', alpha=0.7)
-
-# 값 레이블 추가
-for i, v in enumerate(avg_metrics[numeric_metrics].iloc[:, 0]):
-    ax.text(i, v, f'{v:.1f}', ha='center', va='bottom')
-for i, v in enumerate(avg_metrics[numeric_metrics].iloc[:, 1]):
-    ax.text(i, v, f'{v:.1f}', ha='center', va='bottom')
-
-plt.legend(title='Metric', bbox_to_anchor=(1.05, 1), loc='upper left')
-plt.tight_layout()
-plt.savefig(os.path.join(current_dir, 'numeric_metrics.png'), dpi=300, bbox_inches='tight') 
+if __name__ == "__main__":
+    # 사용 예시
+    plot_model_metrics_from_csv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "result"),
+                               os.path.join(os.path.dirname(os.path.abspath(__file__)), "model_performance_metrics.png")) 

@@ -13,7 +13,6 @@ class PacketAnalyzer:
         self.sessions = {}
     
     def analyze_pcap(self, file_path: str) -> Dict[str, Any]:
-        """PCAP 파일 분석"""
         try:
             # pyshark를 사용하여 패킷 분석
             capture = pyshark.FileCapture(file_path)
@@ -51,17 +50,14 @@ class PacketAnalyzer:
             raise Exception(f"Error analyzing PCAP file: {str(e)}")
     
     def _get_basic_stats(self) -> Dict[str, Any]:
-        """기본 통계 정보"""
         return {
             "total_packets": len(self.packets),
             "total_sessions": len(self.sessions),
             "start_time": min(pkt["timestamp"] for pkt in self.packets),
             "end_time": max(pkt["timestamp"] for pkt in self.packets),
-            "total_bytes": sum(pkt["length"] for pkt in self.packets)
         }
     
     def _get_protocol_distribution(self) -> Dict[str, Any]:
-        """프로토콜 분포 분석"""
         protocol_counts = {}
         for packet in self.packets:
             proto = packet["protocol"]
@@ -73,11 +69,9 @@ class PacketAnalyzer:
         }
     
     def _analyze_traffic_pattern(self) -> Dict[str, Any]:
-        """트래픽 패턴 분석"""
         df = pd.DataFrame(self.packets)
         df["timestamp"] = pd.to_datetime(df["timestamp"])
         
-        # 시간대별 패킷 수
         hourly_counts = df.groupby(df["timestamp"].dt.hour).size()
         
         return {
@@ -86,16 +80,13 @@ class PacketAnalyzer:
         }
     
     def _analyze_security(self) -> Dict[str, Any]:
-        """보안 분석"""
         suspicious_patterns = []
         
-        # 포트 스캔 감지
         port_scan_threshold = 20
         for session in self.sessions.values():
             if len(session) > port_scan_threshold:
                 suspicious_patterns.append("Possible port scan detected")
         
-        # 비정상적인 포트 사용
         common_ports = {80, 443, 22, 53}
         for packet in self.packets:
             if packet["destination_port"] and int(packet["destination_port"]) not in common_ports:
@@ -107,7 +98,6 @@ class PacketAnalyzer:
         }
     
     def _generate_visualizations(self) -> Dict[str, str]:
-        """시각화 생성"""
         df = pd.DataFrame(self.packets)
         df["timestamp"] = pd.to_datetime(df["timestamp"])
         
@@ -136,7 +126,6 @@ class PacketAnalyzer:
         }
     
     def _plot_to_base64(self) -> str:
-        """플롯을 base64로 변환"""
         buf = io.BytesIO()
         plt.savefig(buf, format='png')
         buf.seek(0)

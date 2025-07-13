@@ -8,20 +8,11 @@ logger = logging.getLogger(__name__)
 
 
 class ModelLoadError(Exception):
-    """모델 로딩 중 발생하는 예외"""
     pass
 
 
 class ChatService:
-    """채팅 및 모델 관리를 담당하는 서비스 클래스"""
-    
     def __init__(self, model_name: Optional[str] = None):
-        """
-        ChatService 초기화
-        
-        Args:
-            model_name: 사용할 모델명 (None인 경우 기본 모델 사용)
-        """
         self.model_name = model_name or settings.default_model
         self.tokenizer: Optional[AutoTokenizer] = None
         self.model: Optional[AutoModelForCausalLM] = None
@@ -30,16 +21,6 @@ class ChatService:
         self.load_model(self.model_name)
     
     def load_model(self, model_name: str) -> None:
-        """
-        모델을 로딩합니다.
-        
-        Args:
-            model_name: 로딩할 모델명
-            
-        Raises:
-            ModelLoadError: 모델 로딩 실패 시
-            ValueError: 지원하지 않는 모델명일 때
-        """
         try:
             if model_name not in AVAILABLE_MODELS:
                 raise ValueError(f"지원하지 않는 모델입니다: {model_name}")
@@ -74,19 +55,6 @@ class ChatService:
             raise ModelLoadError(f"모델 로딩 실패: {str(e)}")
 
     async def generate_response(self, message: str, model: Optional[str] = None) -> Dict[str, Any]:
-        """
-        메시지에 대한 응답을 생성합니다.
-        
-        Args:
-            message: 입력 메시지
-            model: 사용할 모델명 (None인 경우 현재 로딩된 모델 사용)
-            
-        Returns:
-            Dict[str, Any]: 생성된 응답
-            
-        Raises:
-            ModelLoadError: 모델이 로딩되지 않았거나 응답 생성 실패 시
-        """
         try:
             # 모델 변경이 요청된 경우
             if model and model != self.model_name:
@@ -134,19 +102,6 @@ class ChatService:
             raise ModelLoadError(f"응답 생성 실패: {str(e)}")
 
     def generate_response_sync(self, message: str, model: Optional[str] = None) -> Dict[str, Any]:
-        """
-        동기적으로 메시지에 대한 응답을 생성합니다.
-        
-        Args:
-            message: 입력 메시지
-            model: 사용할 모델명 (None인 경우 현재 로딩된 모델 사용)
-            
-        Returns:
-            Dict[str, Any]: 생성된 응답
-            
-        Raises:
-            ModelLoadError: 모델이 로딩되지 않았거나 응답 생성 실패 시
-        """
         try:
             # 모델 변경이 요청된 경우
             if model and model != self.model_name:
@@ -190,19 +145,7 @@ class ChatService:
             raise ModelLoadError(f"동기 응답 생성 실패: {str(e)}")
 
     def get_available_models(self) -> Dict[str, Dict[str, str]]:
-        """
-        사용 가능한 모델 목록을 반환합니다.
-        
-        Returns:
-            Dict[str, Dict[str, str]]: 사용 가능한 모델 정보
-        """
         return AVAILABLE_MODELS
 
     def get_current_model(self) -> str:
-        """
-        현재 로딩된 모델명을 반환합니다.
-        
-        Returns:
-            str: 현재 모델명
-        """
         return self.model_name 

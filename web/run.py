@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-SysPacket Analysis API 실행 스크립트
-"""
 import uvicorn
 from web.app.core.config import settings
 

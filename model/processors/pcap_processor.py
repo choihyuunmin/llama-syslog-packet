@@ -18,15 +18,45 @@ class PcapProcessor:
     def _extract_packet_info(self, packet: Packet) -> Dict:
         try:
             timestamp = float(packet.time)
+            # 주요 IP 프로토콜 번호→이름 매핑 (RFC 5237 기준)
+            proto_map = {
+                1: 'ICMP',
+                2: 'IGMP',
+                6: 'TCP',
+                17: 'UDP',
+                41: 'IPv6',
+                47: 'GRE',
+                50: 'ESP',
+                51: 'AH',
+                58: 'ICMPv6',
+                89: 'OSPF',
+                132: 'SCTP',
+                88: 'EIGRP',
+                103: 'PIM',
+                115: 'L2TP',
+                27: 'RDP',
+                46: 'RSVP',
+                137: 'MPLS-in-IP',
+                112: 'VRRP',
+                4: 'IP-in-IP',
+                36: 'XTP',
+                94: 'IPIP',
+                108: 'IPComp',
+                109: 'SNP',
+                124: 'ISIS',
+                131: 'CFTP',
+                143: 'Ethernet',
+            }
+            proto_num = packet[IP].proto if IP in packet else None
+            proto_str = proto_map.get(proto_num, str(proto_num) if proto_num is not None else None)
             info = {
                 'timestamp'     : datetime.fromtimestamp(timestamp).isoformat(),
                 'src_ip'        : packet[IP].src if IP in packet else None,
                 'dst_ip'        : packet[IP].dst if IP in packet else None,
                 'src_port'      : packet[TCP].sport if TCP in packet else None,
                 'dst_port'      : packet[TCP].dport if TCP in packet else None,
-                'protocol'      : packet[IP].proto if IP in packet else None,
+                'protocol'      : proto_str,
                 'length'        : len(packet),
-                'flags'         : packet[TCP].flags if TCP in packet else None,
                 'window'        : packet[TCP].window if TCP in packet else None,
                 'payload'       : str(packet[TCP].payload) if TCP in packet and packet[TCP].payload else None
             }

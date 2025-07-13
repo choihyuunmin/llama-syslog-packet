@@ -9,34 +9,12 @@ logger = logging.getLogger(__name__)
 
 
 class FileService:
-    """파일 업로드 및 분석을 담당하는 서비스 클래스"""
-    
-    def __init__(self, upload_dir: Optional[Path] = None):
-        """
-        FileService 초기화
-        
-        Args:
-            upload_dir: 업로드 디렉토리 경로 (None인 경우 설정에서 가져옴)
-        """
+    def __init__(self, upload_dir: Optional[Path] = None):    
         self.upload_dir = upload_dir or settings.upload_dir
         self.upload_dir.mkdir(exist_ok=True)
-        logger.info(f"FileService 초기화됨. 업로드 디렉토리: {self.upload_dir}")
+        logger.info(f"FileService initialized. Upload directory: {self.upload_dir}")
 
     async def save_file(self, file_content: bytes, filename: str) -> Path:
-        """
-        파일을 업로드 디렉토리에 저장합니다.
-        
-        Args:
-            file_content: 파일 내용 (bytes)
-            filename: 파일명
-            
-        Returns:
-            Path: 저장된 파일 경로
-            
-        Raises:
-            ValueError: 파일 크기가 제한을 초과할 때
-            InvalidFileTypeError: 지원하지 않는 파일 타입일 때
-        """
         try:
             # 파일 유효성 검사
             validate_file_upload(filename, len(file_content))
@@ -56,18 +34,6 @@ class FileService:
             raise
 
     async def analyze_file(self, file_path: Path) -> Dict[str, Any]:
-        """
-        파일을 분석합니다.
-        
-        Args:
-            file_path: 분석할 파일 경로
-            
-        Returns:
-            Dict[str, Any]: 분석 결과
-            
-        Raises:
-            FileAnalysisError: 파일 분석 중 오류 발생 시
-        """
         try:
             start_time = datetime.now()
             file_type = get_file_type(file_path)
@@ -101,12 +67,6 @@ class FileService:
             raise
 
     def list_files(self) -> List[Dict[str, Any]]:
-        """
-        업로드 디렉토리의 파일 목록을 반환합니다.
-        
-        Returns:
-            List[Dict[str, Any]]: 파일 정보 목록
-        """
         try:
             files = []
             for file_path in self.upload_dir.iterdir():
@@ -134,15 +94,6 @@ class FileService:
             raise
 
     def delete_file(self, filename: str) -> bool:
-        """
-        파일을 삭제합니다.
-        
-        Args:
-            filename: 삭제할 파일명
-            
-        Returns:
-            bool: 삭제 성공 여부
-        """
         try:
             file_path = self.upload_dir / filename
             
@@ -159,15 +110,6 @@ class FileService:
             return False
 
     def _get_unique_file_path(self, filename: str) -> Path:
-        """
-        중복되지 않는 파일 경로를 생성합니다.
-        
-        Args:
-            filename: 원본 파일명
-            
-        Returns:
-            Path: 고유한 파일 경로
-        """
         file_path = self.upload_dir / filename
         counter = 1
         

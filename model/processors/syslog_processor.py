@@ -136,14 +136,7 @@ class SyslogProcessor:
                     logger.error(f"Error processing syslog with {encoding} encoding: {e}")
                     raise
             
-            self.logs = parsed_logs
-            self.df = pd.DataFrame(parsed_logs)
-            if not self.df.empty:
-                self.df['timestamp'] = pd.to_datetime(self.df['timestamp'])
-            
-            logger.info(f"Processed {len(self.logs)} log entries")
-
-            return self.logs
+            return parsed_logs
         except Exception as e:
             logger.error(f"Error processing syslog: {e}")
             raise
@@ -166,7 +159,7 @@ class SyslogProcessor:
             
             return {
                 'timestamp': dt.isoformat(),
-                'host': host,
+                'host': "",
                 'program': program,
                 'message': message,
                 'severity': self._get_severity(message),
@@ -205,11 +198,12 @@ class SyslogProcessor:
         return 'other'
     
     def generate_dataset(self) -> List[Dict[str, str]]:
-        if self.df.empty:
+        dataset = []
+        parsed_logs = self.process_logs()
+        
+        if not parsed_logs:
             logger.warning("No logs processed yet. Call process_logs() first.")
             return []
-        
-        dataset = []
         
         # Template for dataset generation
         templates = {

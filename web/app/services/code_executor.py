@@ -18,19 +18,15 @@ class CodeExecutor:
         self.local_vars = {}
         
     def extract_code_blocks(self, text: str) -> list:
-        """Extract Python code blocks from text"""
         code_pattern = r'```(?:python)?\n(.*?)```'
         matches = re.findall(code_pattern, text, re.DOTALL)
         return [block.strip() for block in matches if block.strip()]
     
     def execute_code(self, code: str, context_data: Optional[Dict] = None) -> Dict[str, Any]:
-        """Execute Python code and return results"""
         try:
-            # Setup execution environment
             if context_data:
                 self.global_vars.update(context_data)
             
-            # Capture stdout and stderr
             stdout_capture = io.StringIO()
             stderr_capture = io.StringIO()
             
@@ -97,7 +93,6 @@ class CodeExecutor:
             }
     
     def execute_from_response(self, response: str, context_data: Optional[Dict] = None) -> Dict[str, Any]:
-        """Extract and execute code from LLM response"""
         code_blocks = self.extract_code_blocks(response)
         
         if not code_blocks:
@@ -119,18 +114,15 @@ class CodeExecutor:
         }
     
     def get_available_variables(self) -> Dict[str, Any]:
-        """Get currently available variables"""
         return {
             'global_vars': list(self.global_vars.keys()),
             'local_vars': list(self.local_vars.keys())
         }
     
     def reset_environment(self):
-        """Reset execution environment"""
         self.global_vars = {}
         self.local_vars = {}
         
-        # Re-import common libraries
         import pandas as pd
         import matplotlib.pyplot as plt
         import seaborn as sns
