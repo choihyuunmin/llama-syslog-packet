@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = Field(default=None, description="OpenAI API 키")
     
     # 모델 설정
-    default_model: str = Field(default="choihyuunmin/LlamaTrace", description="기본 모델")
+    default_model: str = Field(default="choihyuunmin/LLaMa-PcapLog", description="기본 모델")
     model_cache_dir: Optional[Path] = Field(default=None, description="모델 캐시 디렉토리")
     
     # 로깅 설정
@@ -68,10 +68,5 @@ AVAILABLE_MODELS: Dict[str, Dict[str, str]] = {
         "name": "gpt-4o",
         "description": "gpt-4o 모델",
         "type": "gpt"
-    },
-    "LlamaTrace": {
-        "name": "choihyuunmin/LlamaTrace",
-        "description": "syslog, packet 분석 모델",
-        "type": "llama"
     }
 } 

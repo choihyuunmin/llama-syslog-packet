@@ -11,12 +11,11 @@ from langchain_openai import ChatOpenAI
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
-from accelerate import Accelerator
 
 from web.app.core.config import settings
 
 logger = logging.getLogger(__name__)
-accelerator = Accelerator()
+
 class RAGService:
     def __init__(self, use_openai: bool = False):
         self.embeddings = HuggingFaceEmbeddings(
@@ -36,7 +35,7 @@ class RAGService:
         
     def _load_llama_model(self):
         try:
-            model_name = "choihyuunmin/LlamaTrace"
+            model_name = "choihyuunmin/LLaMa-PcapLog"
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             model = AutoModelForCausalLM.from_pretrained(
                 model_name,
@@ -46,7 +45,7 @@ class RAGService:
             )
             
             # GPU 사용 가능 시 활용
-            device = accelerator.device
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             model = model.to(device)
             
             # Store model and tokenizer for direct use
@@ -77,6 +76,7 @@ class RAGService:
             raise
         
     def process_file(self, file_path: str, file_type: str) -> Dict[str, Any]:
+        """Process uploaded file and create vector store"""
         try:
             self.current_file = file_path
             
@@ -92,6 +92,7 @@ class RAGService:
             raise
     
     def _process_pcap(self, file_path: str) -> Dict[str, Any]:
+        """Process PCAP file using existing processor"""
         from model.processors.pcap_processor import PcapProcessor
         
         processor = PcapProcessor(file_path)
@@ -146,6 +147,7 @@ class RAGService:
         }
     
     def _process_syslog(self, file_path: str) -> Dict[str, Any]:
+        """Process syslog file using existing processor"""
         from model.processors.syslog_processor import SyslogProcessor
         
         processor = SyslogProcessor(file_path)
@@ -200,6 +202,7 @@ class RAGService:
         }
     
     def _create_packet_summary(self, packets: List[Dict]) -> str:
+        """Create summary of packet data"""
         if not packets:
             return "No packets found in the file."
         
@@ -231,6 +234,7 @@ class RAGService:
         return summary
     
     def _create_log_summary(self, logs: List[Dict]) -> str:
+        """Create summary of log data"""
         if not logs:
             return "No logs found in the file."
         
@@ -260,6 +264,8 @@ class RAGService:
         return summary
     
     def _create_vector_store(self, documents: List[Document]):
+        """Create vector store from documents"""
+        # Text splitting for context preservation
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=800,
             chunk_overlap=300,
@@ -269,9 +275,11 @@ class RAGService:
         split_docs = text_splitter.split_documents(documents)
         self.vector_store = FAISS.from_documents(split_docs, self.embeddings)
         
+        # Load model based on configuration
         if self.llm is None:
             if self.use_openai:
                 self._load_openai_model()
+                # Create QA chain for OpenAI
                 prompt_template = """
                 You are a network and system analysis expert. Use the following context to answer the question.
                 
@@ -305,33 +313,41 @@ class RAGService:
         logger.info(f"Vector store created with {len(split_docs)} documents")
     
     def query(self, question: str) -> str:
+        """Query the RAG system"""
         if not self.vector_store:
             return "No file has been processed yet. Please upload a file first."
         
         try:
+            # Retrieve relevant documents
             docs = self.vector_store.similarity_search(question, k=5)
             context = "\n\n".join([doc.page_content for doc in docs])
             
+            # Create prompt with context
             if self.use_openai:
+                # Use existing OpenAI chain
                 result = self.qa_chain({"query": question})
                 response = result["result"]
             else:
-                system_prompt = "You are a network and system analysis expert specializing in packet analysis and log analysis."
-                
-                user_prompt = f"""Based on the following context information about a specific file that has been analyzed, please answer the user's question.
+                # Use direct Llama model like test_llm.py
+                prompt = f"""<s>[INST] You are a network and system analysis expert specializing in packet analysis and log analysis. 
+You have access to the following context information about a specific file that has been analyzed.
 
-                                Context Information:
-                                {context}
+Context Information:
+{context}
 
-                                User Question: {question}
+User Question: {question}
 
-                                Please provide a detailed and accurate answer based on the context information provided above. If the question asks for code or visualization, provide executable Python code. If the context doesn't contain enough information to answer the question, say so clearly."""
+Please provide a detailed and accurate answer based on the context information provided above. 
+If the question asks for code or visualization, provide executable Python code.
+If the context doesn't contain enough information to answer the question, say so clearly.
+
+Answer: [/INST]"""
                 
-                prompt = f"<s>[INST] {system_prompt}\n\n{user_prompt} [/INST]"
-                
+                # Tokenize input
                 inputs = self.tokenizer(prompt, return_tensors="pt")
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
                 
+                # Generate response
                 with torch.no_grad():
                     outputs = self.model.generate(
                         **inputs,
@@ -347,14 +363,8 @@ class RAGService:
                 response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
                 
                 # Extract only the generated part (remove input prompt)
-                if "[/INST]" in response:
-                    response = response.split("[/INST]")[-1].strip()
-                else:
-                    # If no clear marker, try to extract after the last instruction
-                    response = response[len(prompt):].strip()
-                
-                # Clean up any remaining special tokens or formatting
-                response = response.replace("<s>", "").replace("</s>", "").strip()
+                if "Answer:" in response:
+                    response = response.split("Answer:")[-1].strip()
             
             # Log retrieved context
             logger.info(f"Question: {question}")
@@ -370,6 +380,7 @@ class RAGService:
             return f"Error processing query: {str(e)}"
     
     def get_context(self) -> Dict[str, Any]:
+        """Get current context information"""
         if not self.current_file:
             return {"message": "No file processed"}
         
