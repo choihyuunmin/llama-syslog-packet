@@ -8,14 +8,17 @@ from transformers import (
     Trainer,
     DataCollatorForSeq2Seq,
     BitsAndBytesConfig,
-    AutoConfig
+    AutoConfig,
+    TrainerCallback
 )
-from datasets import load_dataset
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from datasets import Dataset
 import argparse
 from huggingface_hub import login, HfFolder
 import glob
 import gc
+import json
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+import pandas as pd
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -27,7 +30,18 @@ LORA_ALPHA = 16
 LORA_DROPOUT = 0.1
 LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "down_proj", "up_proj"]
 
-def prepare_dataset(dataset_name, tokenizer, max_seq_len):
+def load_jsonl_files_from_dir(dataset_dir):
+    all_data = []
+    for file_path in glob.glob(os.path.join(dataset_dir, "*.json")):
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                all_data.extend(data)
+            else:
+                all_data.append(data)
+    return all_data
+
+def prepare_dataset(dataset_dir, tokenizer, max_seq_len):
     def generate_and_tokenize_prompt(examples):
         prompts = []
         for instruction, input_text, output in zip(examples['instruction'], examples['input'], examples['output']):
@@ -59,12 +73,10 @@ def prepare_dataset(dataset_name, tokenizer, max_seq_len):
         model_inputs["labels"] = [ids.copy() for ids in model_inputs["input_ids"]]
         return model_inputs
 
-    dataset = load_dataset(
-        dataset_name,
-        split="train"
-    )
+    all_data = load_jsonl_files_from_dir(dataset_dir)
+    dataset = Dataset.from_list(all_data)
 
-    train_val = dataset.train_test_split(test_size=1300, shuffle=True, seed=42)
+    train_val = dataset.train_test_split(test_size=0.8, shuffle=True, seed=42)
     
     train_data = train_val["train"].map(
         generate_and_tokenize_prompt,
@@ -88,10 +100,32 @@ def check_huggingface_token():
         login()
     return token
 
+class TrainingLoggerCallback(TrainerCallback):
+    def __init__(self):
+        self.metrics = []
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if logs is None:
+            return
+        log_entry = {"step": state.global_step}
+        if 'loss' in logs:
+            log_entry['train_loss'] = logs['loss']
+        if 'eval_loss' in logs:
+            log_entry['eval_loss'] = logs['eval_loss']
+        if 'learning_rate' in logs:
+            log_entry['learning_rate'] = logs['learning_rate']
+        self.metrics.append(log_entry)
+
+    def save_to_csv(self, output_dir):
+        df = pd.DataFrame(self.metrics)
+        csv_path = os.path.join(output_dir, 'training_metrics.csv')
+        df.to_csv(csv_path, index=False)
+        logger.info(f"Training metrics saved to {csv_path}")
+
 class FineTuner:
-    def __init__(self, model_name, dataset_name, output_dir, max_seq_len=128):
+    def __init__(self, model_name, dataset_dir, output_dir, max_seq_len=128):
         self.model_name = model_name
-        self.dataset_name = dataset_name
+        self.dataset_dir = dataset_dir
         self.output_dir = output_dir
         self.max_seq_len = max_seq_len
         self.tokenizer = None
@@ -120,12 +154,11 @@ class FineTuner:
         )
 
         self.config = AutoConfig.from_pretrained(
-            "meta-llama/Llama-3.2-3B",
+            self.model_name,
             trust_remote_code=True
         )
 
         logger.info("##5. Setting use_cache to False")
-
         self.model.config.use_cache = False
         self.model = prepare_model_for_kbit_training(self.model)
 
@@ -143,7 +176,7 @@ class FineTuner:
     def load_and_process_dataset(self):
         logger.info("##7. Loading and processing dataset")
         train_data, val_data = prepare_dataset(
-            dataset_name=self.dataset_name,
+            dataset_dir=self.dataset_dir,
             tokenizer=self.tokenizer,
             max_seq_len=self.max_seq_len
         )
@@ -152,9 +185,7 @@ class FineTuner:
 
     def train(self, args):
         check_huggingface_token()
-        logger.info("##1-1. Checking huggingface token")
         self.load_model_and_tokenizer()
-        logger.info("##2-1. Loading and processing dataset")
         train_data, val_data = self.load_and_process_dataset()
         logger.info("##9. Training")
 
@@ -167,7 +198,6 @@ class FineTuner:
             learning_rate=args.learning_rate,
             fp16=True,
             max_grad_norm=args.max_grad_norm,
-            max_steps=args.max_steps,
             warmup_ratio=args.warmup_ratio,
             num_train_epochs=args.num_train_epochs,
             lr_scheduler_type=args.lr_scheduler_type,
@@ -181,6 +211,7 @@ class FineTuner:
             save_total_limit=2,
             push_to_hub=True,
             label_names=["labels"],
+            eval_steps=args.logging_steps,
         )
 
         data_collator = DataCollatorForSeq2Seq(
@@ -190,18 +221,22 @@ class FineTuner:
             return_tensors="pt"
         )
 
+        logger_callback = TrainingLoggerCallback()
+
         trainer = Trainer(
             model=self.model,
             args=training_args,
             train_dataset=train_data,
             eval_dataset=val_data,
-            data_collator=data_collator
+            data_collator=data_collator,
+            callbacks=[logger_callback]
         )
 
         trainer.train()
+        logger_callback.save_to_csv(os.path.join(args.output_dir, args.hf_model_name))
         torch.cuda.empty_cache()
 
-        self.model.push_to_hub(
+        self.model.push_to_hub_merged(
             args.hf_model_name,
             use_temp_dir=True,
             token=HfFolder.get_token()
@@ -224,8 +259,8 @@ class FineTuner:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset-name', type=str, required=True)
-    parser.add_argument('--model-name', type=str, default="choihyuunmin/LlamaTrace")
+    parser.add_argument('--dataset-dir', type=str, required=True)
+    parser.add_argument('--model-name', type=str)
     parser.add_argument('--output-dir', type=str, required=True)
     parser.add_argument('--hf-model-name', type=str, required=True, help="Hugging Face model name to upload")
     parser.add_argument('--batch-size', type=int, default=1)
@@ -234,7 +269,6 @@ def main():
     parser.add_argument('--logging-steps', type=int, default=100)
     parser.add_argument('--learning-rate', type=float, default=2e-4)
     parser.add_argument('--max-grad-norm', type=float, default=0.3)
-    parser.add_argument('--max-steps', type=int, default=1000)
     parser.add_argument('--warmup-ratio', type=float, default=0.1)
     parser.add_argument('--num-train-epochs', type=int, default=3)
     parser.add_argument('--lr-scheduler-type', type=str, default="cosine")
@@ -247,7 +281,7 @@ def main():
 
     finetuner = FineTuner(
         model_name=args.model_name,
-        dataset_name=args.dataset_name,
+        dataset_dir=args.dataset_dir,
         output_dir=args.output_dir
     )
     finetuner.train(args)
