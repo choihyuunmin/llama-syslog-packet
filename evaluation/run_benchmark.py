@@ -116,7 +116,7 @@ def save_results(benchmark_data, predictions, metrics_data, output_dir, dataset_
 def run_benchmark(models, benchmark_dir, output_dir):
     """벤치마크 실행"""
     evaluator = BenchmarkEvaluator()
-    num_runs = 5 
+    num_runs = 10
     
     for dataset_type in ['pcap', 'syslog']:
         print(f"\n=== {dataset_type} 데이터셋 평가 시작 ===")
@@ -194,7 +194,7 @@ def get_code_generation_benchmark_examples() -> list[dict]:
             "input": [
                 {
                     "timestamp": "2025-05-13T16:24:01",
-                    "host": "krit-wwas-dev",
+                    "host": "",
                     "program": "systemd",
                     "message": "Created slice User Slice of root.",
                     "severity": "info",
@@ -202,7 +202,7 @@ def get_code_generation_benchmark_examples() -> list[dict]:
                 },
                 {
                     "timestamp": "2025-05-13T16:24:01",
-                    "host": "krit-wwas-dev",
+                    "host": "",
                     "program": "systemd",
                     "message": "Started Session 298515 of user root.",
                     "severity": "info",
@@ -210,7 +210,7 @@ def get_code_generation_benchmark_examples() -> list[dict]:
                 },
                 {
                     "timestamp": "2025-05-13T16:24:01",
-                    "host": "krit-wwas-dev",
+                    "host": "",
                     "program": "systemd",
                     "message": "Removed slice User Slice of root.",
                     "severity": "info",
@@ -224,7 +224,7 @@ def get_code_generation_benchmark_examples() -> list[dict]:
             "input": [
                 {
                     "timestamp": "2025-05-13T16:24:01",
-                    "host": "krit-wwas-dev",
+                    "host": "",
                     "program": "systemd",
                     "message": "Created slice User Slice of root.",
                     "severity": "info",
@@ -232,7 +232,7 @@ def get_code_generation_benchmark_examples() -> list[dict]:
                 },
                 {
                     "timestamp": "2025-05-13T16:24:01",
-                    "host": "krit-wwas-dev",
+                    "host": "",
                     "program": "systemd",
                     "message": "Started Session 298515 of user root.",
                     "severity": "info",
@@ -240,7 +240,7 @@ def get_code_generation_benchmark_examples() -> list[dict]:
                 },
                 {
                     "timestamp": "2025-05-13T16:24:01",
-                    "host": "krit-wwas-dev",
+                    "host": "",
                     "program": "systemd",
                     "message": "Removed slice User Slice of root.",
                     "severity": "info",
@@ -254,7 +254,7 @@ def get_code_generation_benchmark_examples() -> list[dict]:
             "input": [
                 {
                     "timestamp": "2025-05-13T16:24:01",
-                    "host": "krit-wwas-dev",
+                    "host": "",
                     "program": "systemd",
                     "message": "Created slice User Slice of root.",
                     "severity": "info",
@@ -262,7 +262,7 @@ def get_code_generation_benchmark_examples() -> list[dict]:
                 },
                 {
                     "timestamp": "2025-05-13T16:24:01",
-                    "host": "krit-wwas-dev",
+                    "host": "",
                     "program": "systemd",
                     "message": "Started Session 298515 of user root.",
                     "severity": "info",
@@ -270,18 +270,14 @@ def get_code_generation_benchmark_examples() -> list[dict]:
                 },
                 {
                     "timestamp": "2025-05-13T16:24:01",
-                    "host": "krit-wwas-dev",
+                    "host": "",
                     "program": "systemd",
                     "message": "Removed slice User Slice of root.",
                     "severity": "info",
                     "category": "auth"
                 }
             ],
-            "output": (
-                "errors = [log for log in logs if log['severity'] == 'error']\n"
-                "for error in errors:\n"
-                "    print(error['timestamp'], error['message'])"
-            )
+            "output": ""
         }
     ]
 
@@ -348,7 +344,7 @@ def run_code_generation_passk_benchmark(models, k: int = 3, output_dir: str = "r
 def main():
     # 모델 설정
     models = [
-        LlamaModel("LlamaTrace", "choihyuunmin/LlamaTrace"),
+        LlamaModel("LLaMa-PcapLog", "choihyuunmin/LLaMa-PcapLog"),
         LlamaModel("Llama-3-8B-Instruct", "meta-llama/Meta-Llama-3-8B-Instruct"),
         OpenAIModel("gpt-4o", os.getenv("OPENAI_API_KEY"))
     ]

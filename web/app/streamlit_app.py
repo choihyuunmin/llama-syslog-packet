@@ -266,6 +266,11 @@ def main():
                     st.session_state.code_executor.global_vars
                 )
 
+                # response가 python 코드이거나 import/from으로 시작하면 코드블럭으로 감싸기
+                is_code = code_results["has_code"] or response.strip().startswith("import") or response.strip().startswith("from")
+                if is_code and not response.strip().startswith("```"):
+                    response = f"```python\n{response.strip()}\n```"
+
                 # 어시스턴트 응답 추가
                 st.session_state.messages.append({
                     "role": "assistant",
