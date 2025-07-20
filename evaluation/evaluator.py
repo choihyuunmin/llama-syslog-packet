@@ -8,7 +8,17 @@ from pathlib import Path
 from rouge_score import rouge_scorer
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, mean_absolute_error, mean_squared_error
 from sentence_transformers import SentenceTransformer, util
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+from nltk.tokenize import word_tokenize
+import nltk
 import csv
+import ast
+
+# Download required NLTK data
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
 class BenchmarkEvaluator:
     def __init__(self):
@@ -16,118 +26,217 @@ class BenchmarkEvaluator:
         self.logger = logging.getLogger(__name__)
         self.scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
         self.similarity_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+        self.smoothing = SmoothingFunction().method1
         
-    def calculate_regex_matching(self, predictions, ground_truth_data):
-        matches = []
-        for pred, gt_data in zip(predictions, ground_truth_data):
-            if 'regex_pattern' in gt_data:
-                pattern = gt_data['regex_pattern']
-                match = bool(re.search(pattern, pred['output']))
-                matches.append(1 if match else 0)
-        return np.mean(matches) if matches else 0.0
-
-    def calculate_numeric_metrics(self, predictions, ground_truth_data):
-        numeric_pairs = []
-        for pred, gt_data in zip(predictions, ground_truth_data):
-            if 'numeric_value' in gt_data:
-                pred_numbers = re.findall(r'-?\d*\.?\d+', pred['output'])
-                if pred_numbers:
-                    try:
-                        pred_value = float(pred_numbers[0])
-                        gt_value = float(gt_data['numeric_value'])
-                        numeric_pairs.append((pred_value, gt_value))
-                    except ValueError:
-                        continue
-
-        if not numeric_pairs:
-            return {'mae': 0.0, 'mse': 0.0}
-
-        pred_values, gt_values = zip(*numeric_pairs)
-        return {
-            'mae': mean_absolute_error(gt_values, pred_values),
-            'mse': mean_squared_error(gt_values, pred_values)
-        }
-
-    def calculate_semantic_similarity(self, predictions, ground_truth):
-        pred_embeddings = self.similarity_model.encode([p['output'] for p in predictions], convert_to_tensor=True)
-        gt_embeddings = self.similarity_model.encode([g['output'] for g in ground_truth], convert_to_tensor=True)
+    def calculate_accuracy(self, predictions):
+        """Calculate accuracy based on exact matches and semantic similarity"""
+        exact_matches = []
+        semantic_scores = []
         
-        similarities = util.pytorch_cos_sim(pred_embeddings, gt_embeddings)
-        return similarities.diagonal().mean().item()
-
-    def calculate_accuracy_metrics(self, predictions, ground_truth):
-        pred_tokens = [set(p['output'].lower().split()) for p in predictions]
-        gt_tokens = [set(g['output'].lower().split()) for g in ground_truth]
-        
-        exact_matches = [1 if p == g else 0 for p, g in zip(pred_tokens, gt_tokens)]
-        return {
-            'accuracy': np.mean(exact_matches),
-            'precision': precision_score(exact_matches, [1] * len(exact_matches), average='weighted'),
-            'recall': recall_score(exact_matches, [1] * len(exact_matches), average='weighted'),
-            'f1_score': f1_score(exact_matches, [1] * len(exact_matches), average='weighted')
-        }
-
-    def calculate_rouge_scores(self, predictions, ground_truth):
-        scores = {
-            'rouge1': [],
-            'rouge2': [],
-            'rougeL': []
-        }
-        
-        for pred, gt in zip(predictions, ground_truth):
-            score = self.scorer.score(pred['output'], gt['output'])
-            scores['rouge1'].append(score['rouge1'].fmeasure)
-            scores['rouge2'].append(score['rouge2'].fmeasure)
-            scores['rougeL'].append(score['rougeL'].fmeasure)
+        for pred in predictions:
+            # Exact match
+            pred_text = pred['output'].lower().strip()
+            gt_text = pred['expected_output'].lower().strip()
+            exact_matches.append(1 if pred_text == gt_text else 0)
             
-        return {k: np.mean(v) for k, v in scores.items()}
-
-    def calculate_hallucination_rate(self, predictions, ground_truth):
-        similarities = []
-        for pred, gt in zip(predictions, ground_truth):
+            # Semantic similarity
             pred_emb = self.similarity_model.encode(pred['output'], convert_to_tensor=True)
-            gt_emb = self.similarity_model.encode(gt['output'], convert_to_tensor=True)
+            gt_emb = self.similarity_model.encode(pred['expected_output'], convert_to_tensor=True)
             similarity = util.pytorch_cos_sim(pred_emb, gt_emb).item()
-            similarities.append(similarity)
+            semantic_scores.append(similarity)
         
-        hallucination_rate = sum(1 for s in similarities if s < 0.5) / len(similarities)
-        return hallucination_rate
+        exact_accuracy = np.mean(exact_matches)
+        semantic_accuracy = np.mean(semantic_scores)
+        combined_accuracy = 0.3 * exact_accuracy + 0.7 * semantic_accuracy
+        
+        return {
+            'exact_accuracy': exact_accuracy,
+            'semantic_accuracy': semantic_accuracy,
+            'accuracy': combined_accuracy
+        }
+
+    def _check_technical_appropriateness(self, prediction, ground_truth):
+        """Check if technical terms are used appropriately"""
+        # Simple heuristic: check if prediction contains similar technical patterns as ground truth
+        pred_tech_patterns = re.findall(r'\b(?:0x[0-9a-fA-F]+|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\d+:\d+|[A-Z]{2,})\b', prediction)
+        gt_tech_patterns = re.findall(r'\b(?:0x[0-9a-fA-F]+|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\d+:\d+|[A-Z]{2,})\b', ground_truth)
+        
+        if not gt_tech_patterns:
+            return 1.0 if not pred_tech_patterns else 0.8
+        
+        pattern_overlap = len(set(pred_tech_patterns).intersection(set(gt_tech_patterns))) / len(set(gt_tech_patterns))
+        return pattern_overlap
+
+    def calculate_relevance(self, predictions):
+        """Calculate response relevance using BLEU and ROUGE scores"""
+        bleu_scores = []
+        rouge_scores = []
+        
+        for pred in predictions:
+            # Calculate BLEU score
+            reference = [word_tokenize(pred['expected_output'].lower())]
+            candidate = word_tokenize(pred['output'].lower())
+            
+            bleu_score = sentence_bleu(reference, candidate, smoothing_function=self.smoothing)
+            bleu_scores.append(bleu_score)
+            
+            # Calculate ROUGE score
+            rouge_result = self.scorer.score(pred['expected_output'], pred['output'])
+            rouge_scores.append(rouge_result['rougeL'].fmeasure)
+        
+        return {
+            'bleu': np.mean(bleu_scores),
+            'rouge_l': np.mean(rouge_scores),
+            'relevance_score': 0.5 * np.mean(bleu_scores) + 0.5 * np.mean(rouge_scores)
+        }
+
+    def calculate_consistency(self, predictions):
+        """Calculate consistency of responses (requires multiple runs)"""
+        # For single run, calculate internal consistency (answer coherence)
+        consistency_scores = []
+        
+        for pred in predictions:
+            # Check internal consistency by analyzing answer structure
+            response = pred['output']
+            
+            # Simple consistency check: look for contradictory statements
+            sentences = response.split('.')
+            if len(sentences) <= 1:
+                consistency_scores.append(1.0)
+                continue
+            
+            # Check semantic consistency between sentences
+            sentence_embeddings = self.similarity_model.encode(sentences, convert_to_tensor=True)
+            if len(sentence_embeddings) > 1:
+                similarities = []
+                for i in range(len(sentence_embeddings) - 1):
+                    sim = util.pytorch_cos_sim(sentence_embeddings[i], sentence_embeddings[i+1]).item()
+                    similarities.append(sim)
+                consistency_scores.append(np.mean(similarities))
+            else:
+                consistency_scores.append(1.0)
+        
+        return np.mean(consistency_scores)
+
+    def calculate_robustness(self, predictions):
+        """Calculate robustness against noisy or unusual inputs"""
+        robustness_scores = []
+        
+        for pred in predictions:
+            response = pred['output']
+            
+            # Check if model provided a reasonable response (not empty, not error message)
+            if not response.strip():
+                robustness_scores.append(0.0)
+                continue
+            
+            # Check for error indicators
+            error_indicators = ['error', 'cannot', 'unable', 'fail', 'exception', 'invalid']
+            error_count = sum(1 for indicator in error_indicators if indicator in response.lower())
+            
+            # Calculate robustness score (lower error count = higher robustness)
+            if error_count == 0:
+                robustness_score = 1.0
+            else:
+                robustness_score = max(0.0, 1.0 - (error_count * 0.2))
+            
+            robustness_scores.append(robustness_score)
+        
+        return np.mean(robustness_scores)
+
+    def calculate_natural_language_quality(self, predictions):
+        """Calculate natural language quality (fluency, grammar, readability)"""
+        quality_scores = []
+        
+        for pred in predictions:
+            response = pred['output']
+            
+            # Basic quality indicators
+            score = 1.0
+            
+            # Check for basic grammar issues (simple heuristics)
+            if not response.strip():
+                quality_scores.append(0.0)
+                continue
+            
+            # Check sentence structure
+            sentences = response.split('.')
+            valid_sentences = [s.strip() for s in sentences if s.strip()]
+            
+            if not valid_sentences:
+                quality_scores.append(0.0)
+                continue
+            
+            # Check for proper capitalization
+            properly_capitalized = sum(1 for s in valid_sentences if s[0].isupper()) / len(valid_sentences)
+            
+            # Check for reasonable sentence length
+            avg_sentence_length = np.mean([len(s.split()) for s in valid_sentences])
+            length_score = 1.0 if 5 <= avg_sentence_length <= 25 else 0.7
+            
+            # Check for repetition
+            words = response.lower().split()
+            unique_ratio = len(set(words)) / len(words) if words else 0
+            repetition_score = min(1.0, unique_ratio + 0.3)
+            
+            quality_score = 0.4 * properly_capitalized + 0.3 * length_score + 0.3 * repetition_score
+            quality_scores.append(quality_score)
+        
+        return np.mean(quality_scores)
+
+    def calculate_bleu_score(self, predictions):
+        """Calculate BLEU score for all predictions"""
+        bleu_scores = []
+        
+        for pred in predictions:
+            reference = [word_tokenize(pred['expected_output'].lower())]
+            candidate = word_tokenize(pred['output'].lower())
+            
+            bleu_score = sentence_bleu(reference, candidate, smoothing_function=self.smoothing)
+            bleu_scores.append(bleu_score)
+        
+        return np.mean(bleu_scores)
 
     def calculate_f1_score(self, predictions):
         """Calculate F1 score between predicted and expected outputs"""
         f1_scores = []
         
         for pred in predictions:
-            # Tokenize predicted and expected outputs
             pred_tokens = set(pred['output'].lower().split())
             gt_tokens = set(pred['expected_output'].lower().split())
             
-            # Calculate true positives, false positives, and false negatives
             true_positives = len(pred_tokens.intersection(gt_tokens))
             false_positives = len(pred_tokens - gt_tokens)
             false_negatives = len(gt_tokens - pred_tokens)
             
-            # Calculate precision and recall
             precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
             recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
             
-            # Calculate F1 score
             f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
             f1_scores.append(f1)
         
-        # Return average F1 score
         return np.mean(f1_scores)
 
-    def calculate_rouge_score(self, predictions, rouge_type):
-        """ROUGE 점수 계산"""
-        scores = []
+    def calculate_rouge_scores(self, predictions):
+        """Calculate ROUGE scores"""
+        rouge1_scores = []
+        rouge2_scores = []
+        rougeL_scores = []
+        
         for pred in predictions:
-            score = self.scorer.score(pred['output'], pred['expected_output'])
-            scores.append(score[rouge_type].fmeasure)
-        return np.mean(scores)
+            score = self.scorer.score(pred['expected_output'], pred['output'])
+            rouge1_scores.append(score['rouge1'].fmeasure)
+            rouge2_scores.append(score['rouge2'].fmeasure)
+            rougeL_scores.append(score['rougeL'].fmeasure)
+        
+        return {
+            'rouge1': np.mean(rouge1_scores),
+            'rouge2': np.mean(rouge2_scores),
+            'rouge_l': np.mean(rougeL_scores)
+        }
 
     def calculate_cosine_similarity(self, predictions):
-        """코사인 유사도 계산"""
+        """Calculate cosine similarity between predictions and ground truth"""
         similarities = []
         for pred in predictions:
             pred_emb = self.similarity_model.encode(pred['output'], convert_to_tensor=True)
@@ -136,111 +245,56 @@ class BenchmarkEvaluator:
             similarities.append(similarity)
         return np.mean(similarities)
 
-    def calculate_regex_match(self, predictions):
-        """정규식 매칭 점수 계산"""
-        matches = []
-        for pred in predictions:
-            # 숫자 패턴 매칭
-            pred_numbers = re.findall(r'-?\d*\.?\d+', pred['output'])
-            gt_numbers = re.findall(r'-?\d*\.?\d+', pred['expected_output'])
-            
-            if pred_numbers and gt_numbers:
-                try:
-                    pred_value = float(pred_numbers[0])
-                    gt_value = float(gt_numbers[0])
-                    matches.append(1 if abs(pred_value - gt_value) < 0.01 else 0)
-                except ValueError:
-                    matches.append(0)
-            else:
-                # 일반 텍스트 매칭
-                pred_text = pred['output'].lower()
-                gt_text = pred['expected_output'].lower()
-                matches.append(1 if pred_text == gt_text else 0)
-        
-        return np.mean(matches)
-
-    def calculate_numeric_metrics(self, predictions, metric_type):
-        """수치 예측 메트릭 계산 (MAE/MSE)"""
-        numeric_pairs = []
-        for pred in predictions:
-            pred_numbers = re.findall(r'-?\d*\.?\d+', pred['output'])
-            gt_numbers = re.findall(r'-?\d*\.?\d+', pred['expected_output'])
-            
-            if pred_numbers and gt_numbers:
-                try:
-                    pred_value = float(pred_numbers[0])
-                    gt_value = float(gt_numbers[0])
-                    numeric_pairs.append((pred_value, gt_value))
-                except ValueError:
-                    continue
-
-        if not numeric_pairs:
-            return 0.0
-
-        pred_values, gt_values = zip(*numeric_pairs)
-        if metric_type == 'mae':
-            return mean_absolute_error(gt_values, pred_values)
-        else:  # mse
-            return mean_squared_error(gt_values, pred_values)
-
-    def calculate_code_execution_score(self, predictions):
-        """Calculate pass@1 score for code generation tasks"""
-        pass_count = 0
-        total_count = 0
-        
-        for pred in predictions:
-            try:
-                # Check if the output is valid Python code
-                code = pred['output']
-                if not code.strip():
-                    continue
-                
-                # Try to compile the code
-                compile(code, '<string>', 'exec')
-                
-                # If compilation succeeds, increment pass count
-                pass_count += 1
-            except (SyntaxError, ValueError, TypeError):
-                pass
-            finally:
-                total_count += 1
-        
-        # Calculate pass@1 score
-        return pass_count / total_count if total_count > 0 else 0
-
     def evaluate(self, original_data, predictions, dataset_type):
-        """Run evaluation and save results as CSV only"""
+        """Run comprehensive evaluation with all 8 metrics"""
         metrics_data = {}
+        
         for model_name, model_predictions in predictions.items():
             try:
+                # 1. Accuracy metrics
+                accuracy_metrics = self.calculate_accuracy(model_predictions)
+                
+                # 2. Relevance (BLEU and ROUGE)
+                relevance_metrics = self.calculate_relevance(model_predictions)
+                
+                # 4. Consistency
+                consistency_score = self.calculate_consistency(model_predictions)
+                
+                # 5. Robustness
+                robustness_score = self.calculate_robustness(model_predictions)
+                
+                # 6. Natural language quality
+                nlq_score = self.calculate_natural_language_quality(model_predictions)
+                
+                # Additional metrics
+                f1_score = self.calculate_f1_score(model_predictions)
+                rouge_scores = self.calculate_rouge_scores(model_predictions)
+                cosine_sim = self.calculate_cosine_similarity(model_predictions)
+                
+                # Combine all metrics
                 metrics = {
-                    'f1_score': self.calculate_f1_score(model_predictions),
-                    'rouge1': self.calculate_rouge_scores(model_predictions, original_data)[ 'rouge1'],
-                    'rouge2': self.calculate_rouge_scores(model_predictions, original_data)[ 'rouge2'],
-                    'rougeL': self.calculate_rouge_scores(model_predictions, original_data)[ 'rougeL'],
-                    'cosine_similarity': self.calculate_cosine_similarity(model_predictions),
-                    'numeric_mae': self.calculate_numeric_metrics(model_predictions, 'mae'),
-                    'numeric_mse': self.calculate_numeric_metrics(model_predictions, 'mse')
+                    # Core 8 metrics
+                    'accuracy': accuracy_metrics['accuracy'],
+                    'exact_accuracy': accuracy_metrics['exact_accuracy'],
+                    'semantic_accuracy': accuracy_metrics['semantic_accuracy'],
+                    'relevance_score': relevance_metrics['relevance_score'],
+                    'consistency': consistency_score,
+                    'robustness': robustness_score,
+                    'natural_language_quality': nlq_score,
+                    
+                    # Additional detailed metrics
+                    'bleu': relevance_metrics['bleu'],
+                    'rouge1': rouge_scores['rouge1'],
+                    'rouge2': rouge_scores['rouge2'],
+                    'rouge_l': rouge_scores['rouge_l'],
+                    'f1_score': f1_score,
+                    'cosine_similarity': cosine_sim
                 }
+                
                 metrics_data[model_name] = metrics
+                
             except Exception as e:
                 self.logger.error(f"Error evaluating model {model_name}: {e}")
                 continue
-
-        # Save metrics data as CSV file
-        metrics_file = f'results/{dataset_type}_metrics.csv'
-        Path('results').mkdir(parents=True, exist_ok=True)
-        try:
-            with open(metrics_file, 'w', encoding='utf-8', newline='') as csvfile:
-                fieldnames = ['model'] + list(next(iter(metrics_data.values())).keys())
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-                for model, metrics in metrics_data.items():
-                    row = {'model': model}
-                    row.update({k: round(v, 4) for k, v in metrics.items()})  # 소수점 4자리 반올림
-                    writer.writerow(row)
-        except IOError as e:
-            self.logger.error(f"Failed to write CSV file {metrics_file}: {e}")
-            raise
 
         return metrics_data

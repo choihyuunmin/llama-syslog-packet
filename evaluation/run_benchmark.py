@@ -9,9 +9,11 @@ from typing import List, Dict, Any
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 from openai import OpenAI
+import ollama
 import ast
 from collections import defaultdict
 import csv
+import time
 
 class BaseModel:
     def __init__(self, model_name: str):
@@ -72,7 +74,22 @@ class OpenAIModel(BaseModel):
             )
             return response.choices[0].message.content
         except Exception as e:
-            logging.error(f"OpenAI API 호출 중 오류 발생: {str(e)}")
+            logging.error(f"Openai Error: {str(e)}")
+            return ""
+
+class OllamaModel(BaseModel):
+    def __init__(self, model_name: str):
+        super().__init__(model_name)
+    
+    def predict(self, prompt: str) -> str:
+        try:
+            response = ollama.chat(
+                model=self.model_name,
+                messages=[{'role': 'user', 'content': prompt}]
+            )
+            return response['message']['content']
+        except Exception as e:
+            logging.error(f"Ollama Error: {str(e)}")
             return ""
 
 def setup_logging():
@@ -83,108 +100,281 @@ def setup_logging():
     return logging.getLogger(__name__)
 
 def load_benchmark_data(data_path):
-    with open(data_path, 'r') as f:
+    with open(data_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def save_results(benchmark_data, predictions, metrics_data, output_dir, dataset_type, run_num=None):
-    # CSV 파일명 설정
-    if run_num is not None:
-        csv_filename = f'{dataset_type}_run_{run_num}_metrics.csv'
-        json_filename = f'{dataset_type}_run_{run_num}_results.json'
-    else:
-        csv_filename = f'{dataset_type}_avg_metrics.csv'
-        json_filename = f'{dataset_type}_avg_results.json'
-    
-    # 메트릭 데이터를 DataFrame으로 변환
-    metrics_df = pd.DataFrame(metrics_data).T
-    metrics_df.index.name = 'model'
-    
-    # CSV 파일로 저장
-    csv_path = output_dir / csv_filename
-    metrics_df.to_csv(csv_path)
-    
-    # JSON 파일로 저장 (원본 데이터 + 예측 결과)
-    json_path = output_dir / json_filename
-    results = {
-        'benchmark_data': benchmark_data,
-        'predictions': predictions,
-        'metrics': metrics_data
-    }
-    with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
+def measure_latency(model, prompt):
+    """Measure response latency for a single prediction"""
+    start_time = time.time()
+    response = model.predict(prompt)
+    end_time = time.time()
+    return response, (end_time - start_time) * 1000  # Convert to milliseconds
 
-def run_benchmark(models, benchmark_dir, output_dir):
-    """벤치마크 실행"""
-    evaluator = BenchmarkEvaluator()
-    num_runs = 10
+def run_base_vs_custom_comparison(benchmark_dir, output_dir):
+    """Compare base llama3.1 model with custom Llama-PcapLog model"""
+    print("\n" + "="*60)
+    print("BASE MODEL vs CUSTOM MODEL COMPARISON")
+    print("="*60)
     
+    # Define models for comparison
+    base_model = LlamaModel("meta-llama/Meta-Llama-3-8B-Instruct", "meta-llama/Meta-Llama-3-8B-Instruct")
+    custom_model = LlamaModel("Llama-PcapLog", "choihyuunmin/Llama-PcapLog")
+    
+    models = [base_model, custom_model]
+    evaluator = BenchmarkEvaluator()
+    
+    comparison_results = {}
+    
+    # Test on both pcap and syslog datasets
     for dataset_type in ['pcap', 'syslog']:
-        print(f"\n=== {dataset_type} 데이터셋 평가 시작 ===")
+        print(f"\n--- {dataset_type.upper()} Dataset Evaluation ---")
         
         benchmark_file = benchmark_dir / f'{dataset_type}_test.json'
-        with open(benchmark_file, 'r', encoding='utf-8') as f:
-            benchmark_data = json.load(f)
-
+        benchmark_data = load_benchmark_data(benchmark_file)
+        
+        # Group by type
         type_groups = {}
         for item in benchmark_data:
             t = item['type']
             if t not in type_groups:
                 type_groups[t] = []
             type_groups[t].append(item)
-
-        # type별로 벤치마크 실행
-        for type_name, items in type_groups.items():
-            print(f"\n=== {dataset_type} {type_name} 데이터셋 평가 시작 ===")
-            
-            all_metrics_data = []
-            all_predictions_list = []
-            
-            for run in range(num_runs):
-                print(f"\n=== 실행 {run + 1}/{num_runs} ===")
-                
-                # 각 모델별 예측 결과 수집
-                all_predictions = {}
-                for model in models:
-                    print(f"\n{model.model_name} 모델 예측 중...")
-                    predictions = []
-                    for item in items: # 현재 type의 문제들만 반복
-                        prompt = f"{item['instruction']}\n\n Context: \n{item['input']}"
-                        prediction = model.predict(prompt)
-                        predictions.append({
-                            'input': prompt,
-                            'output': prediction,
-                            'expected_output': item['output']
-                        })
-                    all_predictions[model.model_name] = predictions
-                
-                # 평가 실행
-                metrics_data = evaluator.evaluate(items, all_predictions, dataset_type) # items를 직접 전달
-                all_metrics_data.append(metrics_data)
-                all_predictions_list.append(all_predictions)
-                
-                # 각 실행의 결과 저장
-                save_results(items, all_predictions, metrics_data, output_dir, f"{dataset_type}_{type_name}", run + 1) # type_name 추가
-            
-            # 평균 메트릭 계산
-            avg_metrics_data = {}
-            for model_name in all_metrics_data[0].keys():
-                avg_metrics = {}
-                for metric in all_metrics_data[0][model_name].keys():
-                    values = [run_data[model_name][metric] for run_data in all_metrics_data]
-                    avg_metrics[metric] = sum(values) / len(values)
-                avg_metrics_data[model_name] = avg_metrics
-            
-            # 평균 메트릭 저장
-            save_results(items, all_predictions_list[-1], avg_metrics_data, output_dir, f"{dataset_type}_{type_name}") # type_name 추가
-            
-            # 평균 메트릭으로 시각화
-            evaluator.visualize_metrics(avg_metrics_data, f"{dataset_type}_{type_name}_avg")
-            evaluator.visualize_regex_metrics(avg_metrics_data, f"{dataset_type}_{type_name}_avg")
-            evaluator.visualize_code_metrics(avg_metrics_data, f"{dataset_type}_{type_name}_avg")
-            
-            print(f"=== {dataset_type} {type_name} 데이터셋 평가 완료 ===\n")
         
-        print(f"=== {dataset_type} 데이터셋 평가 완료 ===\n")
+        dataset_results = {}
+        
+        for type_name, items in type_groups.items():
+            print(f"\nEvaluating {type_name} tasks...")
+            
+            type_results = {}
+            
+            # Collect predictions and latencies
+            for model in models:
+                print(f"Testing {model.model_name}...")
+                
+                predictions = []
+                latencies = []
+                
+                for item in items:
+                    prompt = f"{item['instruction']}\n\nContext:\n{item['input']}"
+                    response, latency = measure_latency(model, prompt)
+                    
+                    predictions.append({
+                        'input': prompt,
+                        'output': response,
+                        'expected_output': item['output']
+                    })
+                    latencies.append(latency)
+                
+                # Evaluate metrics
+                model_predictions = {model.model_name: predictions}
+                metrics = evaluator.evaluate(items, model_predictions, dataset_type)
+                
+                # Add latency metrics
+                metrics[model.model_name]['avg_latency_ms'] = sum(latencies) / len(latencies)
+                metrics[model.model_name]['total_latency_ms'] = sum(latencies)
+                
+                type_results[model.model_name] = {
+                    'metrics': metrics[model.model_name],
+                    'predictions': predictions,
+                    'latencies': latencies
+                }
+            
+            dataset_results[type_name] = type_results
+        
+        comparison_results[dataset_type] = dataset_results
+    
+    # Save comparison results
+    save_comparison_results(comparison_results, output_dir, "base_vs_custom")
+    
+    # Generate comparison report
+    generate_comparison_report(comparison_results, output_dir, "base_vs_custom", 
+                             base_model.model_name, custom_model.model_name)
+    
+    return comparison_results
+
+def run_custom_vs_general_comparison(benchmark_dir, output_dir):
+    """Compare custom model with general LLMs"""
+    print("\n" + "="*60)
+    print("CUSTOM MODEL vs GENERAL LLMs COMPARISON")
+    print("="*60)
+    
+    # Define models for comparison
+    custom_model = LlamaModel("Llama-PcapLog", "choihyuunmin/Llama-PcapLog")
+    general_models = [
+        OllamaModel("qwen2:7b"),
+        OllamaModel("gemma3:4b"),
+        OllamaModel("mistral:7b"),
+        OllamaModel("llama3.1:8b")
+    ]
+    
+    # Add OpenAI model if API key is available
+    if os.getenv("OPENAI_API_KEY"):
+        general_models.append(OpenAIModel("gpt-4o", os.getenv("OPENAI_API_KEY")))
+    
+    models = [custom_model] + general_models
+    evaluator = BenchmarkEvaluator()
+    
+    comparison_results = {}
+    
+    # Test on both pcap and syslog datasets
+    for dataset_type in ['pcap', 'syslog']:
+        print(f"\n--- {dataset_type.upper()} Dataset Evaluation ---")
+        
+        benchmark_file = benchmark_dir / f'{dataset_type}_test.json'
+        benchmark_data = load_benchmark_data(benchmark_file)
+        
+        # Group by type
+        type_groups = {}
+        for item in benchmark_data:
+            t = item['type']
+            if t not in type_groups:
+                type_groups[t] = []
+            type_groups[t].append(item)
+        
+        dataset_results = {}
+        
+        for type_name, items in type_groups.items():
+            print(f"\nEvaluating {type_name} tasks...")
+            
+            type_results = {}
+            
+            # Collect predictions and latencies
+            for model in models:
+                print(f"Testing {model.model_name}...")
+                
+                predictions = []
+                latencies = []
+                
+                for item in items:
+                    prompt = f"{item['instruction']}\n\nContext:\n{item['input']}"
+                    response, latency = measure_latency(model, prompt)
+                    
+                    predictions.append({
+                        'input': prompt,
+                        'output': response,
+                        'expected_output': item['output']
+                    })
+                    latencies.append(latency)
+                
+                # Evaluate metrics
+                model_predictions = {model.model_name: predictions}
+                metrics = evaluator.evaluate(items, model_predictions, dataset_type)
+                
+                # Add latency metrics
+                if model.model_name in metrics:
+                    metrics[model.model_name]['avg_latency_ms'] = sum(latencies) / len(latencies) if latencies else 0
+                    metrics[model.model_name]['total_latency_ms'] = sum(latencies)
+                
+                type_results[model.model_name] = {
+                    'metrics': metrics.get(model.model_name, {}),
+                    'predictions': predictions,
+                    'latencies': latencies
+                }
+            
+            dataset_results[type_name] = type_results
+        
+        comparison_results[dataset_type] = dataset_results
+    
+    # Save comparison results
+    save_comparison_results(comparison_results, output_dir, "custom_vs_general")
+    
+    # Generate comparison report
+    generate_comparison_report(comparison_results, output_dir, "custom_vs_general", 
+                             custom_model.model_name, "General LLMs")
+
+    # Run code generation benchmark
+    print("\n" + "="*60)
+    print("CODE GENERATION BENCHMARK (pass@k)")
+    print("="*60)
+    run_code_generation_passk_benchmark(models, k=3, output_dir=str(output_dir))
+
+    return comparison_results
+
+def save_comparison_results(results, output_dir, comparison_type):
+    """Save detailed comparison results to JSON and CSV files"""
+    # Save detailed JSON results
+    json_path = output_dir / f"{comparison_type}_detailed_results.json"
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(results, f, indent=2, ensure_ascii=False, default=str)
+    
+    # Create summary CSV
+    csv_data = []
+    for dataset_type, dataset_results in results.items():
+        for type_name, type_results in dataset_results.items():
+            for model_name, model_data in type_results.items():
+                metrics = model_data['metrics']
+                row = {
+                    'dataset': dataset_type,
+                    'task_type': type_name,
+                    'model': model_name,
+                    **metrics
+                }
+                csv_data.append(row)
+    
+    csv_path = output_dir / f"{comparison_type}_summary.csv"
+    if csv_data:
+        df = pd.DataFrame(csv_data)
+        df.to_csv(csv_path, index=False)
+
+def generate_comparison_report(results, output_dir, comparison_type, model1_name, model2_name):
+    """Generate a comprehensive comparison report"""
+    report_path = output_dir / f"{comparison_type}_report.md"
+    
+    with open(report_path, 'w', encoding='utf-8') as f:
+        f.write(f"# {comparison_type.replace('_', ' ').title()} Report\n\n")
+        f.write(f"Comparison between **{model1_name}** and **{model2_name}**\n\n")
+        
+        # Overall summary
+        f.write("## Overall Performance Summary\n\n")
+        
+        for dataset_type, dataset_results in results.items():
+            f.write(f"### {dataset_type.upper()} Dataset\n\n")
+            
+            for type_name, type_results in dataset_results.items():
+                f.write(f"#### {type_name} Tasks\n\n")
+                f.write("| Model | Accuracy | BLEU | ROUGE-L | Avg Latency (ms) |\n")
+                f.write("|-------|----------|------|---------|------------------|\n")
+                
+                for model_name, model_data in type_results.items():
+                    metrics = model_data['metrics']
+                    f.write(f"| {model_name} | {metrics.get('accuracy', 'N/A'):.4f} | "
+                           f"{metrics.get('bleu', 'N/A'):.4f} | {metrics.get('rouge_l', 'N/A'):.4f} | "
+                           f"{metrics.get('avg_latency_ms', 'N/A'):.2f} |\n")
+                
+                f.write("\n")
+        
+        # Performance improvement analysis (for base vs custom)
+        if comparison_type == "base_vs_custom":
+            f.write("## Performance Improvement Analysis\n\n")
+            
+            for dataset_type, dataset_results in results.items():
+                f.write(f"### {dataset_type.upper()} Dataset Improvements\n\n")
+                
+                for type_name, type_results in dataset_results.items():
+                    models_list = list(type_results.keys())
+                    if len(models_list) >= 2:
+                        base_metrics = type_results[models_list[0]]['metrics']
+                        custom_metrics = type_results[models_list[1]]['metrics']
+                        
+                        f.write(f"#### {type_name} Tasks\n\n")
+                        
+                        for metric in ['accuracy', 'bleu', 'rouge_l']:
+                            if metric in base_metrics and metric in custom_metrics:
+                                base_val = base_metrics[metric]
+                                custom_val = custom_metrics[metric]
+                                improvement = ((custom_val - base_val) / base_val * 100) if base_val > 0 else 0
+                                f.write(f"- **{metric.upper()}**: {improvement:+.2f}% improvement "
+                                       f"({base_val:.4f} → {custom_val:.4f})\n")
+                        
+                        # Latency comparison
+                        if 'avg_latency_ms' in base_metrics and 'avg_latency_ms' in custom_metrics:
+                            base_latency = base_metrics['avg_latency_ms']
+                            custom_latency = custom_metrics['avg_latency_ms']
+                            latency_change = ((custom_latency - base_latency) / base_latency * 100) if base_latency > 0 else 0
+                            f.write(f"- **Average Latency**: {latency_change:+.2f}% change "
+                                   f"({base_latency:.2f}ms → {custom_latency:.2f}ms)\n")
+                        
+                        f.write("\n")
 
 def get_code_generation_benchmark_examples() -> list[dict]:
     return [
@@ -291,7 +481,7 @@ def is_python_code_syntax_valid(code: str) -> bool:
 def run_code_generation_passk_benchmark(models, k: int = 3, output_dir: str = "results"):
     items = get_code_generation_benchmark_examples()
     dataset_type = "code_generation"
-    results = defaultdict(list)  # model_name -> [True/False ...]
+    results = defaultdict(list)
     csv_rows = []
     for model in models:
         for idx, item in enumerate(items):
@@ -310,7 +500,6 @@ def run_code_generation_passk_benchmark(models, k: int = 3, output_dir: str = "r
                     break
             results[model.model_name].append(passed)
             print(f"  Q{idx+1}: {'PASS' if passed else 'FAIL'}")
-            # 모든 시도 기록 (최대 k개)
             for i, att in enumerate(attempts):
                 csv_rows.append({
                     'model': model.model_name,
@@ -324,12 +513,10 @@ def run_code_generation_passk_benchmark(models, k: int = 3, output_dir: str = "r
                     'pass@k': passed
                 })
 
-    # 모델별 pass@k 집계
     for model_name, passes in results.items():
         score = sum(passes) / len(passes) if passes else 0.0
         print(f"{model_name}: {score:.2f} ({sum(passes)}/{len(passes)})")
 
-    # CSV 저장
     import os
     os.makedirs(output_dir, exist_ok=True)
     csv_path = os.path.join(output_dir, "code_generation_passk_results.csv")
@@ -342,19 +529,31 @@ def run_code_generation_passk_benchmark(models, k: int = 3, output_dir: str = "r
             writer.writerow(row)
 
 def main():
-    # 모델 설정
-    models = [
-        LlamaModel("LLaMa-PcapLog", "choihyuunmin/LLaMa-PcapLog"),
-        LlamaModel("Llama-3-8B-Instruct", "meta-llama/Meta-Llama-3-8B-Instruct"),
-        OpenAIModel("gpt-4o", os.getenv("OPENAI_API_KEY"))
-    ]
+    parser = argparse.ArgumentParser(description='Run LLM benchmark comparisons')
+    parser.add_argument('--comparison', choices=['base_vs_custom', 'custom_vs_general', 'both'], 
+                       default='both', help='Type of comparison to run')
+    parser.add_argument('--benchmark_dir', type=str, default='benchmark_data',
+                       help='Directory containing benchmark data')
+    parser.add_argument('--output_dir', type=str, default='results',
+                       help='Directory to save results')
     
-    benchmark_dir = Path('benchmark_data')
-    output_dir = Path('results')
+    args = parser.parse_args()
+    
+    benchmark_dir = Path(args.benchmark_dir)
+    output_dir = Path(args.output_dir)
     output_dir.mkdir(exist_ok=True)
     
-    run_benchmark(models, benchmark_dir, output_dir)
-    run_code_generation_passk_benchmark(models, k=3, output_dir=str(output_dir))
+    setup_logging()
+    
+    if args.comparison in ['base_vs_custom', 'both']:
+        print("Starting Base vs Custom Model Comparison...")
+        run_base_vs_custom_comparison(benchmark_dir, output_dir)
+    
+    if args.comparison in ['custom_vs_general', 'both']:
+        print("Starting Custom vs General LLMs Comparison...")
+        run_custom_vs_general_comparison(benchmark_dir, output_dir)
+    
+    print(f"\nAll comparisons completed. Results saved to {output_dir}")
 
 if __name__ == '__main__':
     main() 

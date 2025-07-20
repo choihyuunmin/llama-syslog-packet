@@ -59,8 +59,8 @@ settings = Settings()
 
 # 사용 가능한 모델 정의
 AVAILABLE_MODELS: Dict[str, Dict[str, str]] = {
-    "LLaMa-PcapLog": {
-        "name": "choihyuunmin/LLaMa-PcapLog",
+    "Llama-PcapLog": {
+        "name": "choihyuunmin/Llama-PcapLog",
         "description": "syslog, packet 분석 모델",
         "type": "llama"
     },
