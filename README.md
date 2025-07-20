@@ -1,11 +1,11 @@
-# LLaMa-PcapLog
+# Llama-PcapLog
 
 An AI-based system that analyzes syslog and PCAP files and answers questions about network traffic.
 
 ## project structure
 
 ```
-LLaMa-PcapLog/
+Llama-PcapLog/
 ├── model/                   # Data processing and model training
 │   ├── benchmark/           # Model benchmarking
 │   ├── datasets/            # Datasets
@@ -42,8 +42,8 @@ curl -sSL https://install.python-poetry.org | python3 -
 ### 2. project settings
 
 ```bash
-git clone https://github.com/choihyuunmin/llama-syslog-packet
-cd llama-syslog-packet
+git clone https://github.com/choihyuunmin/Llama-PcapLog
+cd Llama-PcapLog
 poetry install
 poetry env activate
 ```
