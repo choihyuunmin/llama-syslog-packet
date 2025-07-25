@@ -4,7 +4,7 @@ import logging
 import os
 import pandas as pd
 from pathlib import Path
-from evaluator import BenchmarkEvaluator
+from evaluator import BenchmarkEvaluator, Evaluator
 from typing import List, Dict, Any
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
@@ -121,67 +121,67 @@ def run_base_vs_custom_comparison(benchmark_dir, output_dir):
     custom_model = LlamaModel("Llama-PcapLog", "choihyuunmin/Llama-PcapLog")
     
     models = [base_model, custom_model]
-    evaluator = BenchmarkEvaluator()
+    evaluator = Evaluator()
     
     comparison_results = {}
     
-    # Test on both pcap and syslog datasets
-    for dataset_type in ['pcap', 'syslog']:
-        print(f"\n--- {dataset_type.upper()} Dataset Evaluation ---")
+    # Test on attack detection dataset
+    print(f"\n--- ATTACK DETECTION Dataset Evaluation ---")
+    
+    benchmark_file = benchmark_dir / 'test' / 'attack_test_dataset.json'
+    benchmark_data = load_benchmark_data(benchmark_file)
+    
+    # Group by type
+    type_groups = {}
+    for item in benchmark_data:
+        t = item['type']
+        if t not in type_groups:
+            type_groups[t] = []
+        type_groups[t].append(item)
+    
+    dataset_results = {}
+    
+    for type_name, items in type_groups.items():
+        print(f"\nEvaluating {type_name} tasks...")
         
-        benchmark_file = benchmark_dir / f'{dataset_type}_test.json'
-        benchmark_data = load_benchmark_data(benchmark_file)
+        type_results = {}
         
-        # Group by type
-        type_groups = {}
-        for item in benchmark_data:
-            t = item['type']
-            if t not in type_groups:
-                type_groups[t] = []
-            type_groups[t].append(item)
-        
-        dataset_results = {}
-        
-        for type_name, items in type_groups.items():
-            print(f"\nEvaluating {type_name} tasks...")
+        # Collect predictions and latencies
+        for model in models:
+            print(f"Testing {model.model_name}...")
             
-            type_results = {}
+            predictions = []
+            latencies = []
             
-            # Collect predictions and latencies
-            for model in models:
-                print(f"Testing {model.model_name}...")
+            for item in items:
+                prompt = f"{item['instruction']}\n\nContext:\n{json.dumps(item['input'], indent=2)}"
+                response, latency = measure_latency(model, prompt)
                 
-                predictions = []
-                latencies = []
-                
-                for item in items:
-                    prompt = f"{item['instruction']}\n\nContext:\n{item['input']}"
-                    response, latency = measure_latency(model, prompt)
-                    
-                    predictions.append({
-                        'input': prompt,
-                        'output': response,
-                        'expected_output': item['output']
-                    })
-                    latencies.append(latency)
-                
-                # Evaluate metrics
-                model_predictions = {model.model_name: predictions}
-                metrics = evaluator.evaluate(items, model_predictions, dataset_type)
-                
-                # Add latency metrics
+                predictions.append({
+                    'input': prompt,
+                    'output': response,
+                    'expected_output': item['output']
+                })
+                latencies.append(latency)
+            
+            # Evaluate metrics
+            model_predictions = {model.model_name: predictions}
+            metrics = evaluator.evaluate(items, model_predictions, "attack_detection")
+            
+            # Add latency metrics
+            if model.model_name in metrics:
                 metrics[model.model_name]['avg_latency_ms'] = sum(latencies) / len(latencies)
                 metrics[model.model_name]['total_latency_ms'] = sum(latencies)
-                
-                type_results[model.model_name] = {
-                    'metrics': metrics[model.model_name],
-                    'predictions': predictions,
-                    'latencies': latencies
-                }
             
-            dataset_results[type_name] = type_results
+            type_results[model.model_name] = {
+                'metrics': metrics.get(model.model_name, {}),
+                'predictions': predictions,
+                'latencies': latencies
+            }
         
-        comparison_results[dataset_type] = dataset_results
+        dataset_results[type_name] = type_results
+    
+    comparison_results["attack_detection"] = dataset_results
     
     # Save comparison results
     save_comparison_results(comparison_results, output_dir, "base_vs_custom")
@@ -212,68 +212,67 @@ def run_custom_vs_general_comparison(benchmark_dir, output_dir):
         general_models.append(OpenAIModel("gpt-4o", os.getenv("OPENAI_API_KEY")))
     
     models = [custom_model] + general_models
-    evaluator = BenchmarkEvaluator()
+    evaluator = Evaluator()
     
     comparison_results = {}
     
-    # Test on both pcap and syslog datasets
-    for dataset_type in ['pcap', 'syslog']:
-        print(f"\n--- {dataset_type.upper()} Dataset Evaluation ---")
+    # Test on attack detection dataset
+    print(f"\n--- ATTACK DETECTION Dataset Evaluation ---")
+    
+    benchmark_file = benchmark_dir / 'test' / 'attack_test_dataset.json'
+    benchmark_data = load_benchmark_data(benchmark_file)
+    
+    # Group by type
+    type_groups = {}
+    for item in benchmark_data:
+        t = item['type']
+        if t not in type_groups:
+            type_groups[t] = []
+        type_groups[t].append(item)
+    
+    dataset_results = {}
+    
+    for type_name, items in type_groups.items():
+        print(f"\nEvaluating {type_name} tasks...")
         
-        benchmark_file = benchmark_dir / f'{dataset_type}_test.json'
-        benchmark_data = load_benchmark_data(benchmark_file)
+        type_results = {}
         
-        # Group by type
-        type_groups = {}
-        for item in benchmark_data:
-            t = item['type']
-            if t not in type_groups:
-                type_groups[t] = []
-            type_groups[t].append(item)
-        
-        dataset_results = {}
-        
-        for type_name, items in type_groups.items():
-            print(f"\nEvaluating {type_name} tasks...")
+        # Collect predictions and latencies
+        for model in models:
+            print(f"Testing {model.model_name}...")
             
-            type_results = {}
+            predictions = []
+            latencies = []
             
-            # Collect predictions and latencies
-            for model in models:
-                print(f"Testing {model.model_name}...")
+            for item in items:
+                prompt = f"{item['instruction']}\n\nContext:\n{json.dumps(item['input'], indent=2)}"
+                response, latency = measure_latency(model, prompt)
                 
-                predictions = []
-                latencies = []
-                
-                for item in items:
-                    prompt = f"{item['instruction']}\n\nContext:\n{item['input']}"
-                    response, latency = measure_latency(model, prompt)
-                    
-                    predictions.append({
-                        'input': prompt,
-                        'output': response,
-                        'expected_output': item['output']
-                    })
-                    latencies.append(latency)
-                
-                # Evaluate metrics
-                model_predictions = {model.model_name: predictions}
-                metrics = evaluator.evaluate(items, model_predictions, dataset_type)
-                
-                # Add latency metrics
-                if model.model_name in metrics:
-                    metrics[model.model_name]['avg_latency_ms'] = sum(latencies) / len(latencies) if latencies else 0
-                    metrics[model.model_name]['total_latency_ms'] = sum(latencies)
-                
-                type_results[model.model_name] = {
-                    'metrics': metrics.get(model.model_name, {}),
-                    'predictions': predictions,
-                    'latencies': latencies
-                }
+                predictions.append({
+                    'input': prompt,
+                    'output': response,
+                    'expected_output': item['output']
+                })
+                latencies.append(latency)
             
-            dataset_results[type_name] = type_results
+            # Evaluate metrics
+            model_predictions = {model.model_name: predictions}
+            metrics = evaluator.evaluate(items, model_predictions, "attack_detection")
+            
+            # Add latency metrics
+            if model.model_name in metrics:
+                metrics[model.model_name]['avg_latency_ms'] = sum(latencies) / len(latencies) if latencies else 0
+                metrics[model.model_name]['total_latency_ms'] = sum(latencies)
+            
+            type_results[model.model_name] = {
+                'metrics': metrics.get(model.model_name, {}),
+                'predictions': predictions,
+                'latencies': latencies
+            }
         
-        comparison_results[dataset_type] = dataset_results
+        dataset_results[type_name] = type_results
+    
+    comparison_results["attack_detection"] = dataset_results
     
     # Save comparison results
     save_comparison_results(comparison_results, output_dir, "custom_vs_general")
@@ -325,21 +324,43 @@ def generate_comparison_report(results, output_dir, comparison_type, model1_name
         f.write(f"Comparison between **{model1_name}** and **{model2_name}**\n\n")
         
         # Overall summary
-        f.write("## Overall Performance Summary\n\n")
+        f.write("## 사이버보안 도메인 특화 성능 평가\n\n")
         
         for dataset_type, dataset_results in results.items():
             f.write(f"### {dataset_type.upper()} Dataset\n\n")
             
             for type_name, type_results in dataset_results.items():
                 f.write(f"#### {type_name} Tasks\n\n")
-                f.write("| Model | Accuracy | BLEU | ROUGE-L | Avg Latency (ms) |\n")
-                f.write("|-------|----------|------|---------|------------------|\n")
+                f.write("| Model | 공격분류 | 정보추출 | 위협탐지 | 응답품질 | 도메인점수 | 종합점수 | 지연시간(ms) |\n")
+                f.write("|-------|----------|----------|----------|----------|------------|----------|-------------|\n")
                 
                 for model_name, model_data in type_results.items():
                     metrics = model_data['metrics']
-                    f.write(f"| {model_name} | {metrics.get('accuracy', 'N/A'):.4f} | "
-                           f"{metrics.get('bleu', 'N/A'):.4f} | {metrics.get('rouge_l', 'N/A'):.4f} | "
-                           f"{metrics.get('avg_latency_ms', 'N/A'):.2f} |\n")
+                    f.write(f"| {model_name} | "
+                           f"{metrics.get('attack_classification_accuracy', 0):.3f} | "
+                           f"{metrics.get('overall_extraction_f1', 0):.3f} | "
+                           f"{metrics.get('threat_detection_accuracy', 0):.3f} | "
+                           f"{metrics.get('response_quality_score', 0):.3f} | "
+                           f"{metrics.get('domain_specific_score', 0):.3f} | "
+                           f"{metrics.get('overall_score', 0):.3f} | "
+                           f"{metrics.get('avg_latency_ms', 0):.2f} |\n")
+                
+                f.write("\n")
+                
+                # 세부 메트릭 추가
+                f.write("##### 세부 메트릭\n\n")
+                f.write("| Model | BLEU | ROUGE-L | 의미유사도 | IP추출F1 | 포트추출F1 | 프로토콜추출F1 |\n")
+                f.write("|-------|------|---------|------------|----------|------------|----------------|\n")
+                
+                for model_name, model_data in type_results.items():
+                    metrics = model_data['metrics']
+                    f.write(f"| {model_name} | "
+                           f"{metrics.get('bleu', 0):.3f} | "
+                           f"{metrics.get('rouge_l', 0):.3f} | "
+                           f"{metrics.get('semantic_similarity', 0):.3f} | "
+                           f"{metrics.get('ip_extraction_f1', 0):.3f} | "
+                           f"{metrics.get('port_extraction_f1', 0):.3f} | "
+                           f"{metrics.get('protocol_extraction_f1', 0):.3f} |\n")
                 
                 f.write("\n")
         
@@ -532,7 +553,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run LLM benchmark comparisons')
     parser.add_argument('--comparison', choices=['base_vs_custom', 'custom_vs_general', 'both'], 
                        default='both', help='Type of comparison to run')
-    parser.add_argument('--benchmark_dir', type=str, default='benchmark_data',
+    parser.add_argument('--benchmark_dir', type=str, default='.',
                        help='Directory containing benchmark data')
     parser.add_argument('--output_dir', type=str, default='results',
                        help='Directory to save results')
