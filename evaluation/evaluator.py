@@ -7,17 +7,66 @@ from pathlib import Path
 from rouge_score import rouge_scorer
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, classification_report, confusion_matrix
 from sentence_transformers import SentenceTransformer, util
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-from nltk.tokenize import word_tokenize
-import nltk
+try:
+    from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+    import nltk
+    
+    def download_nltk_data():
+        try:
+            nltk.data.find('tokenizers/punkt')
+        except LookupError:
+            try:
+                nltk.download('punkt', quiet=True)
+            except Exception as e:
+                print(f"Warning: Failed to download NLTK punkt data: {e}")
+        
+        try:
+            nltk.data.find('tokenizers/punkt_tab')
+        except LookupError:
+            try:
+                nltk.download('punkt_tab', quiet=True)
+            except Exception as e:
+                print(f"Warning: Failed to download NLTK punkt_tab data: {e}")
+    
+    download_nltk_data()
+    nltk_available = True
+    
+except Exception as e:
+    print(f"Warning: NLTK not fully available: {e}")
+    nltk_available = False
+    
+    # Fallback BLEU implementation
+    def sentence_bleu(reference, hypothesis, weights=(0.25, 0.25, 0.25, 0.25), smoothing_function=None):
+        """Simple fallback BLEU implementation"""
+        if not reference or not hypothesis:
+            return 0.0
+        
+        # Simple word-level precision calculation
+        ref_words = set(reference[0] if isinstance(reference[0], list) else reference[0].split())
+        hyp_words = set(hypothesis if isinstance(hypothesis, list) else hypothesis.split())
+        
+        if not hyp_words:
+            return 0.0
+            
+        intersection = len(ref_words.intersection(hyp_words))
+        precision = intersection / len(hyp_words) if hyp_words else 0
+        
+        return precision
+    
+    class SmoothingFunction:
+        @staticmethod
+        def method1():
+            return None
+
+try:
+    from nltk.tokenize import word_tokenize
+except:
+    # Fallback to simple tokenization if NLTK fails
+    def word_tokenize(text):
+        return text.split()
+
 from collections import defaultdict
 from typing import List, Dict, Any, Tuple
-
-# Download required NLTK data
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
 
 class Evaluator:
     """
@@ -33,7 +82,10 @@ class Evaluator:
         self.logger = logging.getLogger(__name__)
         self.scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
         self.similarity_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
-        self.smoothing = SmoothingFunction().method1
+        try:
+            self.smoothing = SmoothingFunction().method1
+        except:
+            self.smoothing = None
         
         # Define attack types
         self.attack_types = [
@@ -114,7 +166,6 @@ class Evaluator:
             'attack_classification_f1': f1_macro,
             'attack_classification_precision': precision_macro,
             'attack_classification_recall': recall_macro,
-            'predictions_detail': list(zip(y_true, y_pred))
         }
     
     def extract_ip_addresses(self, text: str) -> List[str]:
@@ -169,7 +220,7 @@ class Evaluator:
                     if not true_set or not pred_set:
                         return 0.0
                     
-                    true_set = {x for x in true_set if x}  # 빈 문자열 제거
+                    true_set = {x for x in true_set if x}
                     pred_set = {x for x in pred_set if x}
                     
                     if not true_set and not pred_set:
@@ -259,14 +310,22 @@ class Evaluator:
         rouge_scores = []
         
         for pred in predictions:
-            reference = [word_tokenize(pred['expected_output'].lower())]
-            candidate = word_tokenize(pred['output'].lower())
+            try:
+                reference = [word_tokenize(pred['expected_output'].lower())]
+                candidate = word_tokenize(pred['output'].lower())
+                
+                bleu_score = sentence_bleu(reference, candidate, smoothing_function=self.smoothing)
+                bleu_scores.append(bleu_score)
+            except Exception as e:
+                self.logger.warning(f"Error calculating BLEU score: {e}")
+                bleu_scores.append(0.0)
             
-            bleu_score = sentence_bleu(reference, candidate, smoothing_function=self.smoothing)
-            bleu_scores.append(bleu_score)
-            
-            rouge_result = self.scorer.score(pred['expected_output'], pred['output'])
-            rouge_scores.append(rouge_result['rougeL'].fmeasure)
+            try:
+                rouge_result = self.scorer.score(pred['expected_output'], pred['output'])
+                rouge_scores.append(rouge_result['rougeL'].fmeasure)
+            except Exception as e:
+                self.logger.warning(f"Error calculating ROUGE score: {e}")
+                rouge_scores.append(0.0)
         
         return {
             'bleu': np.mean(bleu_scores) if bleu_scores else 0,
@@ -309,17 +368,6 @@ class Evaluator:
                     **similarity_metrics
                 }
                 
-                # 종합 점수 계산
-                domain_score = (
-                    all_metrics['attack_classification_accuracy'] * 0.3 +
-                    all_metrics['overall_extraction_f1'] * 0.2 +
-                    all_metrics['threat_detection_accuracy'] * 0.2 +
-                    all_metrics['response_quality_score'] * 0.3
-                )
-                
-                all_metrics['domain_specific_score'] = domain_score
-                all_metrics['overall_score'] = (domain_score * 0.7 + all_metrics['semantic_similarity'] * 0.3)
-                
                 metrics_data[model_name] = all_metrics
                 
             except Exception as e:
@@ -330,17 +378,15 @@ class Evaluator:
     
     def generate_detailed_report(self, metrics_data: Dict[str, Dict], output_path: str):
         report = []
-        report.append("# 사이버보안 도메인 특화 평가 리포트\n")
         report.append("## 평가 지표 설명\n")
         report.append("- **공격 분류 정확도**: 공격 유형을 정확히 분류한 비율")
         report.append("- **정보 추출 F1**: IP, 포트, 프로토콜 등 기술적 정보 추출 성능")
         report.append("- **위협 탐지 정확도**: 보안 위협을 정확히 탐지한 비율")
         report.append("- **응답 품질**: 응답의 완성도 및 유용성")
-        report.append("- **도메인 특화 점수**: 위 지표들의 가중 평균\n")
         
         report.append("## 모델별 성능 비교\n")
-        report.append("| 모델 | 공격분류 | 정보추출 | 위협탐지 | 응답품질 | 도메인점수 | 종합점수 |")
-        report.append("|------|----------|----------|----------|----------|------------|----------|")
+        report.append("| 모델 | 공격분류 | 정보추출 | 위협탐지 | 응답품질 |")
+        report.append("|------|----------|----------|----------|----------|")
         
         for model_name, metrics in metrics_data.items():
             report.append(
@@ -349,8 +395,6 @@ class Evaluator:
                     f"{metrics.get('overall_extraction_f1', 0):.3f} | "
                     f"{metrics.get('threat_detection_accuracy', 0):.3f} | "
                     f"{metrics.get('response_quality_score', 0):.3f} | "
-                    f"{metrics.get('domain_specific_score', 0):.3f} | "
-                    f"{metrics.get('overall_score', 0):.3f} |"
                 )
         
         report.append("\n## 세부 메트릭\n")
