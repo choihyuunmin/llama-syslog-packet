@@ -79,7 +79,7 @@ class LlamaModel(BaseModel):
             
         except RuntimeError as e:
             if "CUDA" in str(e) or "device-side assert" in str(e):
-                print(f"⚠️ {model_name} CUDA 로딩 실패: {e}")
+                print(f"{model_name} CUDA 로딩 실패: {e}")
                 print(f"  CPU 모드로 fallback...")
                 self.device = "cpu"
                 
@@ -118,8 +118,6 @@ class LlamaModel(BaseModel):
             
         except RuntimeError as e:
             if "CUDA" in str(e) or "device-side assert" in str(e):
-                print(f"⚠️ {self.model_name} 예측 중 CUDA 오류: {e}")
-                print("  더 작은 배치 크기로 재시도합니다...")
                 try:
                     # 더 작은 토큰 길이로 재시도
                     inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024)
@@ -140,13 +138,13 @@ class LlamaModel(BaseModel):
                     return response
                 except Exception as retry_error:
                     print(f"  재시도도 실패: {retry_error}")
-                    return ""  # 빈 문자열 반환으로 수치 계산 오류 방지
+                    return "" 
             else:
-                print(f"⚠️ {self.model_name} 예측 중 오류: {e}")
-                return ""  # 빈 문자열 반환으로 수치 계산 오류 방지
+                print(f"{self.model_name} 예측 중 오류: {e}")
+                return "" 
         except Exception as e:
-            print(f"⚠️ {self.model_name} 예측 중 알 수 없는 오류: {e}")
-            return ""  # 빈 문자열 반환으로 수치 계산 오류 방지
+            print(f"{self.model_name} 예측 중 알 수 없는 오류: {e}")
+            return "" 
     
     def cleanup(self):
         """메모리 정리"""
@@ -162,8 +160,6 @@ class LlamaModel(BaseModel):
                     torch.cuda.empty_cache()
                     torch.cuda.synchronize()  # GPU 작업 완료 대기
                 except RuntimeError as e:
-                    print(f"⚠️ CUDA 메모리 정리 중 오류 발생: {e}")
-                    print("  대안적 메모리 정리를 시도합니다...")
                     try:
                         # 대안적 메모리 정리
                         torch.cuda.ipc_collect()
@@ -175,8 +171,7 @@ class LlamaModel(BaseModel):
             print(f"  {self.model_name} 메모리 정리 완료")
             
         except Exception as e:
-            print(f"⚠️ {self.model_name} 메모리 정리 중 오류 발생: {e}")
-            print("  메모리 정리를 건너뛰고 계속 진행합니다.")
+            print(f"{self.model_name} 메모리 정리 중 오류 발생: {e}")
 
 class OpenAIModel(BaseModel):
     def __init__(self, model_name: str, api_key: str):
@@ -198,12 +193,7 @@ class OpenAIModel(BaseModel):
             result = response.choices[0].message.content
             return result if result else ""
         except Exception as e:
-            print(f"⚠️ OpenAI API 오류 ({self.model_name}): {str(e)}")
-            return ""  # 빈 문자열 반환으로 수치 계산 오류 방지
-    
-    def cleanup(self):
-        """OpenAI 모델 메모리 정리 (API 모델이므로 특별한 정리 불필요)"""
-        print(f"  {self.model_name} 정리 완료 (API 모델)")
+            return ""
 
 def setup_logging():
     logging.basicConfig(
@@ -447,8 +437,7 @@ def test_single_model(model_info, benchmark_data, code_gen_data, evaluator):
             model = model_class(model_name, model_args)
         except RuntimeError as cuda_error:
             if "CUDA" in str(cuda_error):
-                print(f"⚠️ {model_name} CUDA 로딩 실패: {cuda_error}")
-                print("  CPU 모드로 재시도합니다...")
+                print(f"{model_name} CUDA 로딩 실패: {cuda_error}")
                 # CPU 모드로 fallback 시도
                 original_device = torch.cuda.is_available()
                 torch.cuda.is_available = lambda: False  # 임시로 CUDA 비활성화
@@ -456,7 +445,7 @@ def test_single_model(model_info, benchmark_data, code_gen_data, evaluator):
                     model = model_class(model_name, model_args)
                     print(f"  {model_name} CPU 모드로 로딩 성공")
                 except Exception as cpu_error:
-                    print(f"❌ {model_name} CPU 모드로도 로딩 실패: {cpu_error}")
+                    print(f"{model_name} CPU 모드로도 로딩 실패: {cpu_error}")
                     return [], [], {}
                 finally:
                     torch.cuda.is_available = lambda: original_device  # 원래 상태 복원
@@ -547,10 +536,8 @@ def test_single_model(model_info, benchmark_data, code_gen_data, evaluator):
                         elif isinstance(value, str) and value.replace('.', '').replace('-', '').isdigit():
                             cleaned_metrics[key] = float(value)
                         else:
-                            print(f"  ⚠️ 비수치 메트릭 값 발견 ({key}: {value}) -> 0으로 대체")
                             cleaned_metrics[key] = 0.0
                     except (ValueError, TypeError):
-                        print(f"  ⚠️ 메트릭 변환 실패 ({key}: {value}) -> 0으로 대체")
                         cleaned_metrics[key] = 0.0
                         
                 model_metrics = cleaned_metrics
@@ -633,7 +620,7 @@ def test_single_model(model_info, benchmark_data, code_gen_data, evaluator):
         return all_results, detailed_results, test_set_results
         
     except Exception as e:
-        print(f"❌ {model_name} 테스트 실패: {str(e)}")
+        print(f"{model_name} 테스트 실패: {str(e)}")
         return [], [], {}
 
 def run_comprehensive_benchmark(benchmark_dir, output_dir):
@@ -654,10 +641,7 @@ def run_comprehensive_benchmark(benchmark_dir, output_dir):
     # OpenAI 모델 추가 (API 키가 있는 경우)
     if os.getenv("OPENAI_API_KEY"):
         model_configs.append(("gpt-4o", OpenAIModel, os.getenv("OPENAI_API_KEY")))
-        print("✅ OpenAI API 키가 설정되어 GPT-4o 모델이 포함됩니다.")
-    else:
-        print("⚠️ OPENAI_API_KEY가 설정되지 않아 GPT-4o는 제외됩니다.")
-    
+
     print(f"총 {len(model_configs)}개 모델로 벤치마크를 진행합니다.")
     
     evaluator = Evaluator()
@@ -706,14 +690,11 @@ def run_comprehensive_benchmark(benchmark_dir, output_dir):
             print(f"{model_name} 테스트 완료")
             
         except Exception as model_error:
-            print(f"❌ {model_name} 전체 테스트 실패: {model_error}")
-            print(f"  {model_name}을(를) 건너뛰고 다음 모델로 진행합니다.")
             
-            # 실패한 모델에 대한 빈 결과 추가 (일관성 유지)
             failed_result = {
                 'test_type': 'failed',
                 'model': model_name,
-                'error': str(model_error)[:200],  # 에러 메시지 길이 제한
+                'error': str(model_error)[:200],
                 'avg_latency_ms': 0.0,
                 'success_rate': 0.0,
                 'total_items': 0,
@@ -722,7 +703,6 @@ def run_comprehensive_benchmark(benchmark_dir, output_dir):
             }
             all_results.append(failed_result)
         
-        # 메모리 정리 (CUDA 에러 예외 처리)
         try:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
@@ -730,17 +710,15 @@ def run_comprehensive_benchmark(benchmark_dir, output_dir):
             gc.collect()
             print(f"메모리 정리 완료")
         except RuntimeError as e:
-            print(f"⚠️ 메모리 정리 중 CUDA 오류 발생: {e}")
-            print("  메모리 정리를 건너뛰고 다음 모델로 진행합니다.")
+            print(f"메모리 정리 중 CUDA 오류 발생: {e}")
+            print("메모리 정리를 건너뛰고 다음 모델로 진행합니다.")
             try:
-                gc.collect()  # 최소한 Python 메모리는 정리
+                gc.collect()
             except Exception:
                 pass
     
-    # 결과를 CSV 파일로 저장
     save_benchmark_results_to_csv(all_results, all_detailed_results, all_test_set_results, output_dir)
     
-    # 종합 순위 계산 및 출력
     print_overall_rankings(all_results)
     
     return all_results, all_detailed_results
@@ -803,7 +781,7 @@ def save_benchmark_results_to_csv(results, detailed_results, test_set_results, o
         print(f"상세 결과가 {detailed_path}에 저장되었습니다.")
         
     except Exception as e:
-        print(f"⚠️ CSV 저장 중 오류 발생: {e}")
+        print(f"CSV 저장 중 오류 발생: {e}")
         print("데이터 구조 확인:")
         if results:
             print(f"  results 샘플: {results[0] if results else 'None'}")
@@ -988,10 +966,6 @@ def create_unified_benchmark_table(test_set_results, output_dir):
         # 저장
         unified_path = output_dir / 'unified_benchmark_results.csv'
         unified_df.to_csv(unified_path, index=False, encoding='utf-8-sig')
-        print(f"\n🎯 통합 벤치마크 결과가 {unified_path}에 저장되었습니다.")
-        print(f"   - 컬럼: {len(unified_df.columns)}개")
-        print(f"   - 행: {len(unified_df)}개")
-        print(f"   - 포함된 메트릭: attack_accuracy, f1_scores, cosine_similarity, pass@3 등")
 
 def print_overall_rankings(results):
     """종합 순위 출력"""
@@ -1015,17 +989,6 @@ def print_overall_rankings(results):
         model_averages = {model: sum(scores)/len(scores) for model, scores in model_stats.items()}
         sorted_models = sorted(model_averages.items(), key=lambda x: x[1], reverse=True)
         
-        print("\n평균 정확도 기준 순위 (공격 탐지):")
-        for rank, (model, avg_accuracy) in enumerate(sorted_models, 1):
-            if model == "Llama-PcapLog":
-                print(f"{rank}위: {model} - {avg_accuracy:.4f} (우리 모델!)")
-            else:
-                print(f"{rank}위: {model} - {avg_accuracy:.4f}")
-        
-        # Llama-PcapLog 모델의 성능 분석
-        llama_pcaplog_rank = next((i for i, (model, _) in enumerate(sorted_models, 1) if model == "Llama-PcapLog"), None)
-        if llama_pcaplog_rank:
-            llama_score = model_averages["Llama-PcapLog"]
     
     # 코드 생성 Pass@k 순위
     passk_results = [r for r in results if 'pass_at_k' in r]
@@ -1039,10 +1002,6 @@ def print_overall_rankings(results):
             passed = result['passed_tasks']
             total = result['total_tasks']
             
-            if model == "Llama-PcapLog":
-                print(f"{rank}위: {model} - {passk:.3f} ({passed}/{total}) (우리 모델!)")
-            else:
-                print(f"{rank}위: {model} - {passk:.3f} ({passed}/{total})")
 
 def main():
     parser = argparse.ArgumentParser(description='Run comprehensive LLM benchmark')
@@ -1061,7 +1020,7 @@ def main():
     
     print("6개 모델 종합 벤치마크를 시작합니다...")
     print("모델 목록:")
-    print("1. Llama-PcapLog (우리 모델)")
+    print("1. Llama-PcapLog")
     print("2. Llama-3.1-8B-Instruct")
     print("3. Qwen2-7B") 
     print("4. Gemma-3-4B-IT")
