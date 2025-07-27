@@ -1,6 +1,0 @@
-﻿model,model_type,avg_latency_ms,attack_classification_accuracy,information_extraction_f1,threat_detection_accuracy,response_quality_score,domain_specific_score,overall_score,bleu_score,rouge_l,semantic_similarity
-Llama-PcapLog,custom,0.0015974044799804688,0.85,0.78,0.92,0.88,0.86,0.87,0.72,0.68,0.81
-gpt-4o,general,0.0008106231689453125,0.68,0.61,0.75,0.64,0.67,0.66,0.58,0.55,0.62
-Meta-Llama-3-8B-Instruct,base,0.0005006790161132812,0.52,0.45,0.59,0.48,0.51,0.5,0.43,0.41,0.47
-qwen2:7b,general,0.000476837158203125,0.47,0.38,0.54,0.42,0.45,0.44,0.36,0.34,0.4
-gemma3:4b,general,0.0004291534423828125,0.41,0.33,0.48,0.37,0.4,0.39,0.31,0.29,0.35
