@@ -197,6 +197,10 @@ class FineTuner:
         )
 
         trainer.train()
+<<<<<<< HEAD
+=======
+        torch.cuda.empty_cache()
+>>>>>>> cf91f4b17b7d9e6c2050fba75a742898882dddd3
 
         self.model.push_to_hub_merged(
             args.hf_model_name,
