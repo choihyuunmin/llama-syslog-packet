@@ -86,3 +86,7 @@ cd web
 docker build -t syspacket-web .
 docker run -p 8000:8000 syspacket-web
 ```
+
+
+## Demno
+
