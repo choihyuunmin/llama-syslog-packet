@@ -1,341 +1,113 @@
 import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
+import json
 from pathlib import Path
-from io import BytesIO
-import re
-
-from web.app.services.rag_service import RAGService
-from web.app.services.code_executor import CodeExecutor
+from services.packet_analyzer import PacketAnalyzer
+from services.syslog_analyzer import SyslogAnalyzer
+from services.rag_service import RAGService
 
 st.set_page_config(
-    page_title="LLaMa-PcapLog Chat Service",
-    layout="wide",
+    page_title="Llama-PcapLog Chat",
+    layout="centered",
     initial_sidebar_state="expanded"
 )
 
-if 'rag_service' not in st.session_state:
-    st.session_state.rag_service = RAGService()
-if 'code_executor' not in st.session_state:
-    st.session_state.code_executor = CodeExecutor()
+# Initialize session state variables
 if 'messages' not in st.session_state:
     st.session_state.messages = []
-if 'current_file' not in st.session_state:
-    st.session_state.current_file = None
-if 'file_data' not in st.session_state:
-    st.session_state.file_data = None
+if 'rag_service' not in st.session_state:
+    st.session_state.rag_service = RAGService()
+if 'processed_data' not in st.session_state:
+    st.session_state.processed_data = None
 
-def main():
-    st.markdown("""
-        <style>
-        .main-header {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #1f2937;
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        .sub-header {
-            font-size: 1.2rem;
-            color: #6b7280;
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-        .code-output {
-            background: #1f2937;
-            color: #f9fafb;
-            border-radius: 8px;
-            padding: 1rem;
-            margin: 0.5rem 0;
-        }
-        .file-info {
-            background: #e0f2fe;
-            border-radius: 8px;
-            padding: 1rem;
-            margin: 1rem 0;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('<h1 class="main-header">LLaMa-PcapLog Chat Service</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">Upload PCAP or Syslog files and chat with AI for analysis</p>', unsafe_allow_html=True)
-    
-    # Sidebar for file upload
-    with st.sidebar:
-        st.header("📁 File Upload")
-        
-        # Model selection
-        st.markdown("### 🤖 Model Selection")
-        use_openai = st.checkbox("Use GPT (requires OpenAI API key)", value=False)
-        
-        if use_openai:
-            st.info("Make sure to set OPENAI_API_KEY in your environment variables")
-        
-        uploaded_file = st.file_uploader(
-            "Choose a file",
-            help="Upload PCAP or Syslog files for analysis"
-        )
-        
-        if uploaded_file is not None:
-            if st.button("Process File", type="primary"):
-                with st.spinner("Processing file..."):
+# Sidebar for file uploads
+with st.sidebar:
+    st.header("File Upload")
+
+    # PCAP file uploader
+    st.subheader("PCAP Files")
+    pcap_files = st.file_uploader(
+        "Upload .pcap or .pcapng files",
+        accept_multiple_files=True,
+        type=["pcap", "pcapng"]
+    )
+
+    # Log file uploader
+    st.subheader("Log Files")
+    log_files = st.file_uploader(
+        "Upload log files (including files without extension)",
+        accept_multiple_files=True,
+        type=None
+    )
+
+    if pcap_files or log_files:
+        if st.button("Process Files"):
+            st.session_state.processed_data = []
+            with st.spinner("Processing files..."):
+                temp_dir = Path("temp")
+                temp_dir.mkdir(exist_ok=True)
+
+                # Process PCAP files
+                for uploaded_file in pcap_files:
+                    file_path = temp_dir / uploaded_file.name
+                    with open(file_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
                     try:
-                        # Save uploaded file
-                        file_path = Path("temp") / uploaded_file.name
-                        file_path.parent.mkdir(exist_ok=True)
-                        
-                        with open(file_path, "wb") as f:
-                            f.write(uploaded_file.getbuffer())
-                        
-                        # Determine file type
-                        file_type = 'pcap' if uploaded_file.name.endswith('.pcap') or uploaded_file.name.endswith('.pcapng') else 'log'
-                        
-                        # Initialize RAG service with model choice
-                        if 'rag_service' not in st.session_state or st.session_state.get('use_openai') != use_openai:
-                            st.session_state.rag_service = RAGService(use_openai=use_openai)
-                            st.session_state.use_openai = use_openai
-                        
-                        # Process file with RAG service
-                        file_data = st.session_state.rag_service.process_file(str(file_path), file_type)
-                        
-                        st.session_state.current_file = str(file_path)
-                        st.session_state.file_data = file_data
-                        
-                        # Reset code executor with new data
-                        st.session_state.code_executor.reset_environment()
-                        if file_type == 'pcap' or file_type == 'pcapng':
-                            st.session_state.code_executor.global_vars['packets'] = file_data['packets']
-                        else:
-                            st.session_state.code_executor.global_vars['logs'] = file_data['logs']
-                        
-                        st.success(f"File processed successfully! {len(file_data.get('packets', file_data.get('logs', [])))} records loaded.")
-                        
+                        analyzer = PacketAnalyzer()
+                        data = analyzer.analyze_pcap(str(file_path))
+                        st.session_state.processed_data.extend(data)
+                        st.success(f"Processed PCAP file: {uploaded_file.name}")
                     except Exception as e:
-                        st.error(f"Error processing file: {str(e)}")
+                        st.error(f"Error processing {uploaded_file.name}: {e}")
+
+                # Process Log files
+                for uploaded_file in log_files:
+                    file_path = temp_dir / uploaded_file.name
+                    with open(file_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    try:
+                        analyzer = SyslogAnalyzer()
+                        data = analyzer.analyze_syslog(str(file_path))
+                        st.session_state.processed_data.extend(data)
+                        st.success(f"Processed log file: {uploaded_file.name}")
+                    except Exception as e:
+                        st.error(f"Error processing {uploaded_file.name}: {e}")
+                
+                # Update RAG service with processed data
+                if st.session_state.processed_data:
+                    st.session_state.rag_service.set_processed_data(st.session_state.processed_data)
+                    st.success(f"Processed {len(st.session_state.processed_data)} total entries")
+
+# Main chat interface
+st.title("Llama-PcapLog Chat")
+
+# Display data summary if available
+if st.session_state.processed_data:
+    with st.expander("Data Summary", expanded=False):
+        pcap_count = len([item for item in st.session_state.processed_data if item.get('type') == 'network_packet'])
+        syslog_count = len([item for item in st.session_state.processed_data if item.get('type') == 'syslog'])
         
-        # File info
-        if st.session_state.current_file:
-            st.markdown("### 📊 File Information")
-            context = st.session_state.rag_service.get_context()
-            st.write(f"**File:** {Path(context['current_file']).name}")
-            st.write(f"**Type:** {context['file_type']}")
-            st.write(f"**Status:** {'Ready' if context['vector_store_ready'] else 'Processing'}")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Entries", len(st.session_state.processed_data))
+        with col2:
+            st.metric("Network Packets", pcap_count)
+        with col3:
+            st.metric("Syslog Entries", syslog_count)
+
+# Display previous messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# Handle new user input
+if prompt := st.chat_input("Ask a question about the uploaded files..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            response = st.session_state.rag_service.query(prompt)
+            st.markdown(response)
     
-    # Main content area
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown("### 💬 Chat Interface")
-        
-        # Custom CSS
-        st.markdown("""
-            <style>
-            .chat-container {
-                width: 100%;
-                max-width: 900px;
-                height: 400px;
-                overflow-y: auto;
-                border: 1px solid #e0e0e0;
-                border-radius: 8px;
-                padding: 15px;
-                margin-bottom: 15px;
-                background-color: #fafafa;
-                margin-left: auto;
-                margin-right: auto;
-            }
-            .chat-message {
-                margin-bottom: 15px;
-                padding: 12px;
-                border-radius: 12px;
-                max-width: 100%;
-                width: fit-content;
-                display: flex;
-                align-items: flex-start;
-                gap: 10px;
-                word-break: break-word;
-                box-sizing: border-box;
-            }
-            .chat-message-user {
-                background-color: #e3f2fd;
-                margin-left: auto;
-                flex-direction: row-reverse;
-            }
-            .chat-message-assistant {
-                background-color: #f5f5f5;
-                margin-right: auto;
-            }
-            .chat-emoji {
-                font-size: 1.5rem;
-                flex-shrink: 0;
-            }
-            .chat-content {
-                flex: 1;
-                line-height: 1.4;
-                overflow-wrap: break-word;
-                word-break: break-word;
-            }
-            .chat-input-area {
-                border-top: 1px solid #e0e0e0;
-                padding-top: 15px;
-                margin-top: 15px;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-          
-        # Display existing messages
-        for idx, message in enumerate(st.session_state.messages):
-            if message["role"] == "user":
-                emoji = "🙋"
-                role_class = "chat-message-user"
-                st.markdown(f'''
-                    <div class="chat-message {role_class}">
-                        <div class="chat-emoji">{emoji}</div>
-                        <div class="chat-content">{message["content"]}</div>
-                    </div>
-                ''', unsafe_allow_html=True)
-            else:
-                emoji = "🤖"
-                role_class = "chat-message-assistant"
-                content = message["content"]
-                # 질문이 답변 맨 앞에 포함되어 있으면 제거
-                if idx > 0 and st.session_state.messages[idx-1]["role"] == "user":
-                    user_prompt = st.session_state.messages[idx-1]["content"].strip()
-                    if content.strip().startswith(user_prompt):
-                        content = content.strip()[len(user_prompt):].lstrip("\n: ")
-                # 코드블록 분리 및 출력
-                code_block_pattern = r"```(\w+)?\n([\s\S]*?)```"
-                last_end = 0
-                for match in re.finditer(code_block_pattern, content):
-                    # 코드블록 앞의 텍스트 출력
-                    text_part = content[last_end:match.start()]
-                    if text_part.strip():
-                        st.markdown(f'''
-                            <div class="chat-message {role_class}">
-                                <div class="chat-emoji">{emoji}</div>
-                                <div class="chat-content">{text_part.strip()}</div>
-                            </div>
-                        ''', unsafe_allow_html=True)
-                    code_lang = match.group(1) or "python"
-                    code_content = match.group(2)
-                    st.code(code_content, language=code_lang)
-                    last_end = match.end()
-                # 마지막 남은 텍스트 출력
-                if last_end < len(content):
-                    text_part = content[last_end:]
-                    if text_part.strip():
-                        st.markdown(f'''
-                            <div class="chat-message {role_class}">
-                                <div class="chat-emoji">{emoji}</div>
-                                <div class="chat-content">{text_part.strip()}</div>
-                            </div>
-                        ''', unsafe_allow_html=True)
-
-            # Code execution results output
-            if message.get("code_results"):
-                st.markdown("**Code Execution Results:**")
-                for result in message["code_results"]["results"]:
-                    if result["success"]:
-                        if result["stdout"]:
-                            st.code(result["stdout"], language="text")
-                        if result["figures"]:
-                            for fig in result["figures"]:
-                                st.image(BytesIO(fig["image_data"]), caption=f"Figure {fig['figure_number']}")
-                    else:
-                        st.error(f"Code execution failed: {result['error']['message']}")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Chat input area
-        st.markdown('<div class="chat-input-area">', unsafe_allow_html=True)
-        prompt = st.chat_input("Ask about your file...")
-        
-        if prompt:
-            if not st.session_state.current_file:
-                st.error("Please upload and process a file first.")
-                st.stop()
-
-            # 사용자 메시지 추가
-            st.session_state.messages.append({"role": "user", "content": prompt})
-
-            with st.spinner("Thinking..."):
-                response = st.session_state.rag_service.query(prompt)
-
-                # 코드 실행
-                code_results = st.session_state.code_executor.execute_from_response(
-                    response,
-                    st.session_state.code_executor.global_vars
-                )
-
-                # response가 python 코드이거나 import/from으로 시작하면 코드블럭으로 감싸기
-                is_code = code_results["has_code"] or response.strip().startswith("import") or response.strip().startswith("from")
-                if is_code and not response.strip().startswith("```"):
-                    response = f"```python\n{response.strip()}\n```"
-
-                # 어시스턴트 응답 추가
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": response,
-                    "code_results": code_results if code_results["has_code"] else None
-                })
-
-            # 화면 새로고침
-            st.rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("### 📈 Quick Analysis")
-        
-        if st.session_state.file_data:
-            file_type = "pcap" if "packets" in st.session_state.file_data else "log"
-            
-            if file_type == "pcap":
-                packets = st.session_state.file_data["packets"]
-                if packets:
-                    # Protocol distribution
-                    protocols = {}
-                    for packet in packets:
-                        protocol = packet.get('protocol', 'Unknown')
-                        protocols[protocol] = protocols.get(protocol, 0) + 1
-                    
-                    st.markdown("**Protocol Distribution**")
-                    protocol_df = pd.DataFrame(list(protocols.items()), columns=['Protocol', 'Count'])
-                    st.bar_chart(protocol_df.set_index('Protocol'))
-                    
-                    # Packet size distribution
-                    sizes = [p.get('length', 0) for p in packets]
-                    st.markdown("**Packet Size Distribution**")
-                    fig, ax = plt.subplots(figsize=(6, 4))
-                    ax.hist(sizes, bins=30, alpha=0.7)
-                    ax.set_xlabel('Packet Size (bytes)')
-                    ax.set_ylabel('Count')
-                    st.pyplot(fig)
-                    plt.close()
-            
-            else:  # log files
-                logs = st.session_state.file_data["logs"]
-                if logs:
-                    # Severity distribution
-                    severities = {}
-                    for log in logs:
-                        severity = log.get('severity', 'unknown')
-                        severities[severity] = severities.get(severity, 0) + 1
-                    
-                    st.markdown("**Log Severity Distribution**")
-                    severity_df = pd.DataFrame(list(severities.items()), columns=['Severity', 'Count'])
-                    st.bar_chart(severity_df.set_index('Severity'))
-        
-        # Available variables
-        if st.session_state.code_executor.global_vars:
-            st.markdown("### 🔧 Available Variables")
-            for var_name in st.session_state.code_executor.global_vars.keys():
-                if not var_name.startswith('_'):
-                    st.write(f"• `{var_name}`")
-    
-    # Clear chat button
-    if st.session_state.messages and st.button("Clear Chat"):
-        st.session_state.messages = []
-        st.rerun()
-
-if __name__ == "__main__":
-    main()
+    st.session_state.messages.append({"role": "assistant", "content": response})

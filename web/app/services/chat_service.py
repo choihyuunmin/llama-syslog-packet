@@ -2,7 +2,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 from typing import Dict, Optional, Any
 import logging
-from web.app.core.config import settings, AVAILABLE_MODELS
+from core.config import settings, AVAILABLE_MODELS
 
 logger = logging.getLogger(__name__)
 
@@ -30,13 +30,17 @@ class ChatService:
             
             logger.info(f"모델 로딩 시작: {model_name} ({actual_model_name})")
             
-            # 토크나이저 로딩
+            # Load tokenizer
             self.tokenizer = AutoTokenizer.from_pretrained(
                 actual_model_name,
                 cache_dir=settings.model_cache_dir
             )
             
-            # 모델 로딩
+            # Set pad_token if not exists
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            
+            # Load model
             self.model = AutoModelForCausalLM.from_pretrained(
                 actual_model_name,
                 cache_dir=settings.model_cache_dir,

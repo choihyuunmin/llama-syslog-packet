@@ -1,18 +1,22 @@
-"""
-의존성 주입을 위한 공통 의존성 모듈
-"""
-from typing import Generator
-from fastapi import Depends
-from web.app.core.config import settings
-from web.app.services.file_service import FileService
-from web.app.services.chat_service import ChatService
+from core.config import settings
+from services.file_service import FileService
+from services.chat_service import ChatService
 
+# Global service instances
+_file_service_instance = None
+_chat_service_instance = None
 
 def get_file_service() -> FileService:
-    return FileService()
+    global _file_service_instance
+    if _file_service_instance is None:
+        _file_service_instance = FileService()
+    return _file_service_instance
 
 def get_chat_service() -> ChatService:
-    return ChatService()
+    global _chat_service_instance
+    if _chat_service_instance is None:
+        _chat_service_instance = ChatService()
+    return _chat_service_instance
 
 def get_settings():
     return settings 

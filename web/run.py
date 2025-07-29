@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 import uvicorn
-from web.app.core.config import settings
+from app.core.config import settings
 
 if __name__ == "__main__":
     uvicorn.run(

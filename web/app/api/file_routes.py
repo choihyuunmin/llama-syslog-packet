@@ -2,9 +2,9 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from pathlib import Path
 from typing import List, Dict, Any
 import logging
-from web.app.services.file_service import FileService
-from web.app.core.utils import InvalidFileTypeError, FileAnalysisError
-from web.app.core.dependencies import get_file_service
+from services.file_service import FileService
+from core.utils import InvalidFileTypeError, FileAnalysisError
+from core.dependencies import get_file_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -89,7 +89,7 @@ async def get_file_info(
             raise HTTPException(status_code=404, detail=f"파일 '{filename}'을(를) 찾을 수 없습니다")
         
         stat = file_path.stat()
-        from web.app.core.utils import get_file_type
+        from core.utils import get_file_type
         file_type = get_file_type(file_path)
         
         file_info = {

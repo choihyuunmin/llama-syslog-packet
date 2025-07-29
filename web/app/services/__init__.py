@@ -1,1 +1,1 @@
-from web.app.services import file_service, chat_service, packet_analyzer
+from . import file_service, chat_service, packet_analyzer, syslog_analyzer, rag_service

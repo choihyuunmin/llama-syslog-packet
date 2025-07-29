@@ -8,7 +8,7 @@ import os
 class Settings(BaseSettings):
     
     # 기본 설정
-    app_name: str = Field(default="SysPacket Analysis API", description="애플리케이션 이름")
+    app_name: str = Field(default="Llama-PcapLog API", description="애플리케이션 이름")
     app_version: str = Field(default="1.0.0", description="애플리케이션 버전")
     debug: bool = Field(default=False, description="디버그 모드")
     
@@ -59,8 +59,8 @@ settings = Settings()
 
 # 사용 가능한 모델 정의
 AVAILABLE_MODELS: Dict[str, Dict[str, str]] = {
-    "Llama-PcapLog": {
-        "name": "choihyuunmin/Llama-PcapLog",
+    "LLaMa-PcapLog": {
+        "name": "choihyuunmin/LLaMa-PcapLog",
         "description": "syslog, packet 분석 모델",
         "type": "llama"
     },

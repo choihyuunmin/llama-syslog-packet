@@ -1,13 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-from pathlib import Path
 import logging
-from web.app.core.config import settings
-from web.app.api.file_routes import router as file_router
-from web.app.api.chat_routes import router as chat_router
-from web.app.api.model_routes import router as model_router
-from web.app.api.log_routes import router as log_router
+from core.config import settings
+from api.file_routes import router as file_router
+from api.chat_routes import router as chat_router
+from api.model_routes import router as model_router
+from api.log_routes import router as log_router
 
 # 로깅 설정
 logging.basicConfig(

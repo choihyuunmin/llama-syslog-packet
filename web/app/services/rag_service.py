@@ -1,29 +1,20 @@
 from typing import List, Dict, Any
 import logging
 import torch
+import json
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.schema import Document
-from langchain_community.llms import HuggingFacePipeline
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from langchain_openai import ChatOpenAI
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
-from web.app.core.config import settings
+from core.config import settings
+from services.packet_analyzer import PacketAnalyzer
+from services.syslog_analyzer import SyslogAnalyzer
 
 logger = logging.getLogger(__name__)
 
 class RAGService:
     def __init__(self, use_openai: bool = False):
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-            model_kwargs={'device': 'cpu'}
-        )
-        self.vector_store = None
-        self.qa_chain = None
+        self.processed_data = None
         self.current_file = None
         self.llm = None
         self.use_openai = use_openai
@@ -35,8 +26,13 @@ class RAGService:
         
     def _load_llama_model(self):
         try:
-            model_name = "choihyuunmin/LLaMa-PcapLog"
+            model_name = "choihyuunmin/Llama-PcapLog"
             tokenizer = AutoTokenizer.from_pretrained(model_name)
+            
+            # Set pad_token if not exists
+            if tokenizer.pad_token is None:
+                tokenizer.pad_token = tokenizer.eos_token
+            
             model = AutoModelForCausalLM.from_pretrained(
                 model_name,
                 torch_dtype="auto",
@@ -44,11 +40,9 @@ class RAGService:
                 trust_remote_code=True
             )
             
-            # GPU 사용 가능 시 활용
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             model = model.to(device)
             
-            # Store model and tokenizer for direct use
             self.model = model
             self.tokenizer = tokenizer
             self.device = device
@@ -76,7 +70,6 @@ class RAGService:
             raise
         
     def process_file(self, file_path: str, file_type: str) -> Dict[str, Any]:
-        """Process uploaded file and create vector store"""
         try:
             self.current_file = file_path
             
@@ -92,117 +85,58 @@ class RAGService:
             raise
     
     def _process_pcap(self, file_path: str) -> Dict[str, Any]:
-        """Process PCAP file using existing processor"""
-        from model.processors.pcap_processor import PcapProcessor
+        analyzer = PacketAnalyzer()
+        packets = analyzer.analyze_pcap(file_path)
         
-        processor = PcapProcessor(file_path)
-        packets = processor.process_pcap()
-        dataset = processor.generate_dataset()
-        
-        # Create documents for RAG
-        documents = []
-        
-        # Add file metadata document
-        file_info_doc = Document(
-            page_content=f"File Information: PCAP file with {len(packets)} packets analyzed. File path: {file_path}",
-            metadata={"type": "file_info", "source": "pcap", "packet_count": len(packets)}
-        )
-        documents.append(file_info_doc)
-        
-        # Add packet summary
         packet_summary = self._create_packet_summary(packets)
-        summary_doc = Document(
-            page_content=f"Packet Analysis Summary:\n{packet_summary}",
-            metadata={"type": "summary", "source": "pcap"}
-        )
-        documents.append(summary_doc)
         
-        # Add Q&A pairs
-        for item in dataset:
-            doc = Document(
-                page_content=f"Question: {item['instruction']}\nDetailed Answer: {item['output']}",
-                metadata={"type": "qa_pair", "source": "pcap", "question_type": "analysis"}
-            )
-            documents.append(doc)
+        self.processed_data = {
+            "file_type": "pcap",
+            "file_path": file_path,
+            "packet_count": len(packets),
+            "summary": packet_summary,
+            "packets": packets
+        }
         
-        # Add raw packet data sample
-        if packets:
-            sample_packets = packets[:10]
-            sample_text = "Sample Packet Data:\n"
-            for i, packet in enumerate(sample_packets):
-                sample_text += f"Packet {i+1}: {packet.get('src_ip', 'N/A')} -> {packet.get('dst_ip', 'N/A')} (Protocol: {packet.get('protocol', 'N/A')}, Length: {packet.get('length', 'N/A')})\n"
-            
-            sample_doc = Document(
-                page_content=sample_text,
-                metadata={"type": "sample_data", "source": "pcap", "sample_size": len(sample_packets)}
-            )
-            documents.append(sample_doc)
-        
-        self._create_vector_store(documents)
+        # Load model if not already loaded
+        if self.model is None and self.llm is None:
+            if self.use_openai:
+                self._load_openai_model()
+            else:
+                self._load_llama_model()
         
         return {
             "packets": packets,
-            "dataset": dataset,
             "summary": packet_summary
         }
     
     def _process_syslog(self, file_path: str) -> Dict[str, Any]:
-        """Process syslog file using existing processor"""
-        from model.processors.syslog_processor import SyslogProcessor
+        analyzer = SyslogAnalyzer()
+        logs = analyzer.analyze_syslog(file_path)
         
-        processor = SyslogProcessor(file_path)
-        logs = processor.process_logs()
-        dataset = processor.generate_dataset()
-        
-        # Create documents for RAG
-        documents = []
-        
-        # Add file metadata document
-        file_info_doc = Document(
-            page_content=f"File Information: Syslog file with {len(logs)} log entries analyzed. File path: {file_path}",
-            metadata={"type": "file_info", "source": "syslog", "log_count": len(logs)}
-        )
-        documents.append(file_info_doc)
-        
-        # Add log summary
         log_summary = self._create_log_summary(logs)
-        summary_doc = Document(
-            page_content=f"Log Analysis Summary:\n{log_summary}",
-            metadata={"type": "summary", "source": "syslog"}
-        )
-        documents.append(summary_doc)
         
-        # Add Q&A pairs
-        for item in dataset:
-            doc = Document(
-                page_content=f"Question: {item['instruction']}\nDetailed Answer: {item['output']}",
-                metadata={"type": "qa_pair", "source": "syslog", "question_type": "analysis"}
-            )
-            documents.append(doc)
+        self.processed_data = {
+            "file_type": "syslog",
+            "file_path": file_path,
+            "log_count": len(logs),
+            "summary": log_summary,
+            "logs": logs
+        }
         
-        # Add raw log data sample
-        if logs:
-            sample_logs = logs[:10]
-            sample_text = "Sample Log Data:\n"
-            for i, log in enumerate(sample_logs):
-                sample_text += f"Log {i+1}: [{log.get('timestamp', 'N/A')}] {log.get('host', 'N/A')} {log.get('program', 'N/A')}: {log.get('message', 'N/A')}\n"
-            
-            sample_doc = Document(
-                page_content=sample_text,
-                metadata={"type": "sample_data", "source": "syslog", "sample_size": len(sample_logs)}
-            )
-            documents.append(sample_doc)
-        
-        self._create_vector_store(documents)
+        # Load model if not already loaded
+        if self.model is None and self.llm is None:
+            if self.use_openai:
+                self._load_openai_model()
+            else:
+                self._load_llama_model()
         
         return {
             "logs": logs,
-            "dataset": dataset,
             "summary": log_summary
         }
     
     def _create_packet_summary(self, packets: List[Dict]) -> str:
-        """Create summary of packet data"""
         if not packets:
             return "No packets found in the file."
         
@@ -234,7 +168,6 @@ class RAGService:
         return summary
     
     def _create_log_summary(self, logs: List[Dict]) -> str:
-        """Create summary of log data"""
         if not logs:
             return "No logs found in the file."
         
@@ -244,13 +177,13 @@ class RAGService:
         hosts = {}
         
         for log in logs:
-            severity = log.get('severity', 'unknown')
+            severity = log.get('log_level', 'unknown')
             severities[severity] = severities.get(severity, 0) + 1
             
-            program = log.get('program', 'unknown')
+            program = log.get('component', 'unknown')
             programs[program] = programs.get(program, 0) + 1
             
-            host = log.get('host', 'unknown')
+            host = log.get('hostname', 'unknown')
             hosts[host] = hosts.get(host, 0) + 1
         
         summary = f"""
@@ -263,72 +196,84 @@ class RAGService:
         
         return summary
     
-    def _create_vector_store(self, documents: List[Document]):
-        """Create vector store from documents"""
-        # Text splitting for context preservation
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=800,
-            chunk_overlap=300,
-            separators=["\n\n", "\n", ". ", " ", ""]
-        )
+    def set_processed_data(self, processed_data: List[Dict[str, Any]]) -> None:
+        """Set processed data from external source (e.g., Streamlit)"""
+        if not processed_data:
+            self.processed_data = None
+            return
+            
+        # Determine if data contains pcap or syslog entries
+        pcap_data = [item for item in processed_data if item.get('type') == 'network_packet']
+        syslog_data = [item for item in processed_data if item.get('type') == 'syslog']
         
-        split_docs = text_splitter.split_documents(documents)
-        self.vector_store = FAISS.from_documents(split_docs, self.embeddings)
-        
-        # Load model based on configuration
-        if self.llm is None:
+        if pcap_data and syslog_data:
+            # Mixed data
+            self.processed_data = {
+                "file_type": "mixed",
+                "packet_count": len(pcap_data),
+                "log_count": len(syslog_data),
+                "summary": self._create_mixed_summary(pcap_data, syslog_data),
+                "packets": pcap_data,
+                "logs": syslog_data
+            }
+        elif pcap_data:
+            # Only packet data
+            self.processed_data = {
+                "file_type": "pcap",
+                "packet_count": len(pcap_data),
+                "summary": self._create_packet_summary(pcap_data),
+                "packets": pcap_data
+            }
+        elif syslog_data:
+            # Only log data
+            self.processed_data = {
+                "file_type": "syslog",
+                "log_count": len(syslog_data),
+                "summary": self._create_log_summary(syslog_data),
+                "logs": syslog_data
+            }
+        else:
+            self.processed_data = None
+            
+        # Load model if not already loaded
+        if self.processed_data and self.model is None and self.llm is None:
             if self.use_openai:
                 self._load_openai_model()
-                # Create QA chain for OpenAI
-                prompt_template = """
-                You are a network and system analysis expert. Use the following context to answer the question.
-                
-                Context: {context}
-                
-                Question: {question}
-                
-                Answer based on the context provided. If the question asks for code, provide executable Python code.
-                """
-                
-                prompt = PromptTemplate(
-                    template=prompt_template,
-                    input_variables=["context", "question"]
-                )
-                
-                self.qa_chain = RetrievalQA.from_chain_type(
-                    llm=self.llm,
-                    chain_type="stuff",
-                    retriever=self.vector_store.as_retriever(
-                        search_kwargs={
-                            "k": 5,
-                            "score_threshold": 0.7
-                        }
-                    ),
-                    chain_type_kwargs={"prompt": prompt},
-                    return_source_documents=True
-                )
             else:
                 self._load_llama_model()
+    
+    def _create_mixed_summary(self, packets: List[Dict], logs: List[Dict]) -> str:
+        packet_summary = self._create_packet_summary(packets)
+        log_summary = self._create_log_summary(logs)
         
-        logger.info(f"Vector store created with {len(split_docs)} documents")
+        return f"""
+        Mixed Data Analysis Summary:
+        
+        {packet_summary}
+        
+        {log_summary}
+        """
     
     def query(self, question: str) -> str:
-        """Query the RAG system"""
-        if not self.vector_store:
+        if not self.processed_data:
             return "No file has been processed yet. Please upload a file first."
         
         try:
-            # Retrieve relevant documents
-            docs = self.vector_store.similarity_search(question, k=5)
-            context = "\n\n".join([doc.page_content for doc in docs])
+            # Create context from processed data
+            context = self._create_context()
             
-            # Create prompt with context
             if self.use_openai:
-                # Use existing OpenAI chain
-                result = self.qa_chain({"query": question})
-                response = result["result"]
+                prompt = f"""You are a network and system analysis expert. Use the following context to answer the question.
+
+Context: {context}
+
+Question: {question}
+
+Answer based on the context provided. If the question asks for code, provide executable Python code."""
+                
+                response = self.llm.invoke(prompt)
+                return response.content
             else:
-                # Use direct Llama model like test_llm.py
                 prompt = f"""<s>[INST] You are a network and system analysis expert specializing in packet analysis and log analysis. 
 You have access to the following context information about a specific file that has been analyzed.
 
@@ -343,11 +288,9 @@ If the context doesn't contain enough information to answer the question, say so
 
 Answer: [/INST]"""
                 
-                # Tokenize input
                 inputs = self.tokenizer(prompt, return_tensors="pt")
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
                 
-                # Generate response
                 with torch.no_grad():
                     outputs = self.model.generate(
                         **inputs,
@@ -359,33 +302,65 @@ Answer: [/INST]"""
                         pad_token_id=self.tokenizer.eos_token_id
                     )
                 
-                # Decode response
+                logger.info(f"Outputs: {outputs}")
                 response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+                logger.info(f"Response: {response}")
                 
-                # Extract only the generated part (remove input prompt)
                 if "Answer:" in response:
                     response = response.split("Answer:")[-1].strip()
-            
-            # Log retrieved context
-            logger.info(f"Question: {question}")
-            logger.info(f"Retrieved {len(docs)} source documents")
-            for i, doc in enumerate(docs[:2]):
-                logger.info(f"Source doc {i+1}: {doc.page_content[:200]}...")
-            
-            print(f"Response: {response}")
-            return response
+                
+                return response
             
         except Exception as e:
-            logger.error(f"Error querying RAG system: {e}")
+            logger.error(f"Error querying system: {e}")
             return f"Error processing query: {str(e)}"
     
+    def _create_context(self) -> str:
+        if not self.processed_data:
+            return ""
+        
+        context = f"""File Type: {self.processed_data['file_type']}
+
+{self.processed_data['summary']}
+
+"""
+        
+        if self.processed_data['file_type'] == 'pcap':
+            context += f"Total Packets: {self.processed_data['packet_count']}\n"
+            if self.processed_data['packets']:
+                context += "Sample Packet Data:\n"
+                for i, packet in enumerate(self.processed_data['packets'][:3]):
+                    context += f"Packet {i+1}: {json.dumps(packet, indent=2)}\n"
+        
+        elif self.processed_data['file_type'] == 'syslog':
+            context += f"Total Logs: {self.processed_data['log_count']}\n"
+            if self.processed_data['logs']:
+                context += "Sample Log Data:\n"
+                for i, log in enumerate(self.processed_data['logs'][:3]):
+                    context += f"Log {i+1}: {json.dumps(log, indent=2)}\n"
+        
+        elif self.processed_data['file_type'] == 'mixed':
+            context += f"Total Packets: {self.processed_data['packet_count']}\n"
+            context += f"Total Logs: {self.processed_data['log_count']}\n"
+            
+            if self.processed_data.get('packets'):
+                context += "Sample Packet Data:\n"
+                for i, packet in enumerate(self.processed_data['packets'][:2]):
+                    context += f"Packet {i+1}: {json.dumps(packet, indent=2)}\n"
+                    
+            if self.processed_data.get('logs'):
+                context += "Sample Log Data:\n"
+                for i, log in enumerate(self.processed_data['logs'][:2]):
+                    context += f"Log {i+1}: {json.dumps(log, indent=2)}\n"
+        
+        return context
+    
     def get_context(self) -> Dict[str, Any]:
-        """Get current context information"""
         if not self.current_file:
             return {"message": "No file processed"}
         
         return {
             "current_file": self.current_file,
             "file_type": "pcap" if self.current_file.endswith(".pcap") or self.current_file.endswith(".pcapng") else "log",
-            "vector_store_ready": self.vector_store is not None
-        } 
+            "data_ready": self.processed_data is not None
+        }

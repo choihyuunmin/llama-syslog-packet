@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # LoRA 설정
 LORA_R = 64
 LORA_ALPHA = 16
-LORA_DROPOUT = 0.1
+LORA_DROPOUT = 0
 LORA_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "down_proj", "up_proj"]
 
 def load_jsonl_files_from_dir(dataset_dir):
@@ -123,7 +123,7 @@ class TrainingLoggerCallback(TrainerCallback):
         logger.info(f"Training metrics saved to {csv_path}")
 
 class FineTuner:
-    def __init__(self, model_name, dataset_dir, output_dir, max_seq_len=128):
+    def __init__(self, model_name, dataset_dir, output_dir, max_seq_len=2048):
         self.model_name = model_name
         self.dataset_dir = dataset_dir
         self.output_dir = output_dir

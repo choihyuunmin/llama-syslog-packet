@@ -2,11 +2,11 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime
-from web.app.core.utils import analyze_pcap, analyze_log, get_file_type, validate_file_upload
-from web.app.core.config import settings
+from core.config import settings
+from services.packet_analyzer import PacketAnalyzer
+from services.syslog_analyzer import SyslogAnalyzer
 
 logger = logging.getLogger(__name__)
-
 
 class FileService:
     def __init__(self, upload_dir: Optional[Path] = None):    
@@ -16,9 +16,6 @@ class FileService:
 
     async def save_file(self, file_content: bytes, filename: str) -> Path:
         try:
-            # 파일 유효성 검사
-            validate_file_upload(filename, len(file_content))
-            
             # 파일명 중복 방지
             file_path = self._get_unique_file_path(filename)
             
@@ -36,24 +33,24 @@ class FileService:
     async def analyze_file(self, file_path: Path) -> Dict[str, Any]:
         try:
             start_time = datetime.now()
-            file_type = get_file_type(file_path)
             
-            logger.info(f"파일 분석 시작: {file_path} (타입: {file_type})")
+            logger.info(f"파일 분석 시작: {file_path}")
             
             analysis_result = {}
-            if file_type == 'pcap':
-                analysis_result = analyze_pcap(file_path)
-            elif file_type == 'log':
-                analysis_result = analyze_log(file_path)
+            if file_path.suffix in [".pcap", ".pcapng"]:
+                analyzer = PacketAnalyzer()
+                analysis_result = analyzer.analyze_pcap(str(file_path))
             else:
-                raise ValueError(f"지원하지 않는 파일 타입: {file_type}")
+                # Assume it's a log file if not a pcap
+                analyzer = SyslogAnalyzer()
+                analysis_result = analyzer.analyze_syslog(str(file_path))
             
             end_time = datetime.now()
             analysis_time = (end_time - start_time).total_seconds()
             
             result = {
                 "filename": file_path.name,
-                "file_type": file_type,
+                "file_type": "pcap" if file_path.suffix in [".pcap", ".pcapng"] else "log",
                 "file_size": file_path.stat().st_size,
                 "analysis_time": analysis_time,
                 "analysis": analysis_result
@@ -71,7 +68,7 @@ class FileService:
             files = []
             for file_path in self.upload_dir.iterdir():
                 if file_path.is_file():
-                    file_type = get_file_type(file_path)
+                    file_type = "pcap" if file_path.suffix in [".pcap", ".pcapng"] else "log"
                     stat = file_path.stat()
                     
                     files.append({
@@ -120,4 +117,4 @@ class FileService:
             file_path = self.upload_dir / new_filename
             counter += 1
         
-        return file_path 
+        return file_path

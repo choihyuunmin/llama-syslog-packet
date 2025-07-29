@@ -7,7 +7,6 @@
 *.pcapng
 *.log
 *.jsonl
-*.json
-models/datasets/syslog/
+model/data/*
 web/.locks/*
-web/models--choihyuunmin--LlamaTrace/*
+web/models--choihyuunmin--LLaMa-PcapLog/*

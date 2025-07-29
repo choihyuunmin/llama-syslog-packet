@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import logging
-from web.app.services.chat_service import ChatService, ModelLoadError
-from web.app.core.dependencies import get_chat_service
+from services.chat_service import ChatService, ModelLoadError
+from core.dependencies import get_chat_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

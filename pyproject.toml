@@ -12,81 +12,45 @@ packages = [
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
 
+# Web framework
 fastapi = "^0.109.0"
 uvicorn = {extras = ["standard"], version = "^0.27.0"}
 python-multipart = "^0.0.9"
 pydantic = {extras = ["email"], version = "^2.6.0"}
 pydantic-settings = "^2.1.0"
 python-dotenv = "^1.0.0"
+streamlit = "^1.31.0"
 
+# ML and transformers
 transformers = "^4.35.0"
 torch = "^2.1.0"
+accelerate = "^1.8.0"
+sentence-transformers = "^2.2.2"
 
+# Network analysis
 pyshark = "^0.6.0"
 scapy = "^2.5.0"
-dpkt = "^1.9.0"
 
+# Data analysis
 pandas = "^2.2.0"
 numpy = "^1.24.0"
 matplotlib = "^3.8.0"
 seaborn = "^0.13.0"
-scikit-learn = "^1.4.0"
 
-python-jose = {extras = ["cryptography"], version = "^3.3.0"}
-passlib = {extras = ["bcrypt"], version = "^1.7.0"}
-bcrypt = "^4.1.0"
-
-streamlit = "^1.31.0"
-
-tqdm = "^4.66.0"
-jupyter = "^1.0.0"
-ipykernel = "^6.29.0"
-
-# RAG System dependencies
+# RAG System
 langchain = "^0.1.0"
 langchain-openai = "^0.0.5"
-langchain-community = "^0.0.20"
-chromadb = "^0.4.22"
-sentence-transformers = "^2.2.2"
-faiss-cpu = "^1.7.4"
 openai = "^1.12.0"
-accelerate = "^1.8.0"
 
-# Code execution
-executing = "^2.0.1"
-rich = "^13.7.0"
-datasets = "^4.0.0"
-bitsandbytes = "^0.46.1"
-peft = "^0.16.0"
-evaluate = "^0.4.5"
-pynvml = "^12.0.0"
+# System monitoring
 psutil = "^7.0.0"
-rouge-score = "^0.1.2"
-ollama = "^0.5.1"
-httpx = "^0.28.1"
+tqdm = "^4.66.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
 pytest-asyncio = "^0.23.0"
 pytest-cov = "^4.1.0"
-ruff = "^0.1.0"
-black = "^23.12.0"
-isort = "^5.13.0"
-mypy = "^1.8.0"
-pre-commit = "^4.2.0"
-
-[tool.poetry.group.benchmark.dependencies]
-mlflow = "^2.8.0"
-wandb = "^0.16.0"
-optuna = "^3.5.0"
-hyperopt = "^0.2.7"
-
-[tool.poetry.group.test.dependencies]
-pytest = "^7.4.0"
-pytest-asyncio = "^0.23.0"
-pytest-cov = "^4.1.0"
-
-[tool.poetry.group.lint.dependencies]
+httpx = "^0.26.0"
 ruff = "^0.1.0"
 black = "^23.12.0"
 isort = "^5.13.0"
@@ -118,8 +82,8 @@ include = '\.pyi?$'
 [tool.isort]
 profile = "black"
 multi_line_output = 3
-line_length = 88
-known_first_party = ["model", "app"]
+line-length = 88
+known_first_party = ["web"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -140,10 +104,9 @@ strict_equality = true
 module = [
     "pyshark.*",
     "scapy.*",
-    "dpkt.*",
     "transformers.*",
     "torch.*",
-    "sklearn.*",
+    "streamlit.*",
 ]
 ignore_missing_imports = true
 
@@ -152,8 +115,7 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=model",
-    "--cov=app",
+    "--cov=web",
     "--cov-report=term-missing",
     "--cov-report=html",
 ]
@@ -168,7 +130,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["model", "app"]
+source = ["web"]
 omit = [
     "*/tests/*",
     "*/test_*",

