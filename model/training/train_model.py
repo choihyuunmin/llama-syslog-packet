@@ -8,8 +8,7 @@ from transformers import (
     Trainer,
     DataCollatorForSeq2Seq,
     BitsAndBytesConfig,
-    AutoConfig,
-    TrainerCallback
+    AutoConfig
 )
 from datasets import Dataset
 import argparse
@@ -43,35 +42,28 @@ def load_jsonl_files_from_dir(dataset_dir):
 
 def prepare_dataset(dataset_dir, tokenizer, max_seq_len):
     def generate_and_tokenize_prompt(examples):
-        prompts = []
-        for instruction, input_text, output in zip(examples['instruction'], examples['input'], examples['output']):
-            prompt = f"""Below is an instruction that describes a task, paired with an output that provides the completion of the task.
-            ### Instruction:
-            {instruction}
+        alpaca_prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
-            ### Context:
-            {input_text}
+### Instruction:
+{}
 
-            ### Response:
-            {output}"""
-            prompts.append(prompt)
+### Input:
+{}
 
-        model_inputs = tokenizer(
-            prompts,
-            max_length=max_seq_len,
-            padding=False,
-            truncation=True,
-            return_tensors=None
-        )
-        
-        for i in range(len(model_inputs["input_ids"])):
-            if (model_inputs["input_ids"][i][-1] != tokenizer.eos_token_id and 
-                len(model_inputs["input_ids"][i]) < max_seq_len):
-                model_inputs["input_ids"][i].append(tokenizer.eos_token_id)
-                model_inputs["attention_mask"][i].append(1)
-        
-        model_inputs["labels"] = [ids.copy() for ids in model_inputs["input_ids"]]
-        return model_inputs
+### Response:
+{}"""
+        instructions = examples["instruction"]
+        inputs = examples["input"]
+        outputs = examples["output"]
+
+        EOS_TOKEN = tokenizer.eos_token
+        texts = []
+        for instruction, input, output in zip(instructions, inputs, outputs):
+            text = alpaca_prompt.format(instruction, input, output) + EOS_TOKEN
+            texts.append(text)
+
+        return {"text": texts}
+
 
     all_data = load_jsonl_files_from_dir(dataset_dir)
     dataset = Dataset.from_list(all_data)
@@ -99,28 +91,6 @@ def check_huggingface_token():
     if token is None:
         login()
     return token
-
-class TrainingLoggerCallback(TrainerCallback):
-    def __init__(self):
-        self.metrics = []
-
-    def on_log(self, args, state, control, logs=None, **kwargs):
-        if logs is None:
-            return
-        log_entry = {"step": state.global_step}
-        if 'loss' in logs:
-            log_entry['train_loss'] = logs['loss']
-        if 'eval_loss' in logs:
-            log_entry['eval_loss'] = logs['eval_loss']
-        if 'learning_rate' in logs:
-            log_entry['learning_rate'] = logs['learning_rate']
-        self.metrics.append(log_entry)
-
-    def save_to_csv(self, output_dir):
-        df = pd.DataFrame(self.metrics)
-        csv_path = os.path.join(output_dir, 'training_metrics.csv')
-        df.to_csv(csv_path, index=False)
-        logger.info(f"Training metrics saved to {csv_path}")
 
 class FineTuner:
     def __init__(self, model_name, dataset_dir, output_dir, max_seq_len=2048):
@@ -206,12 +176,9 @@ class FineTuner:
             dataloader_num_workers=2,
             dataloader_pin_memory=True,
             torch_compile=False,
-            report_to="none",
-            load_best_model_at_end=False,
-            save_total_limit=2,
-            push_to_hub=True,
             label_names=["labels"],
             eval_steps=args.logging_steps,
+            report_to="none"
         )
 
         data_collator = DataCollatorForSeq2Seq(
@@ -221,20 +188,15 @@ class FineTuner:
             return_tensors="pt"
         )
 
-        logger_callback = TrainingLoggerCallback()
-
         trainer = Trainer(
             model=self.model,
             args=training_args,
             train_dataset=train_data,
             eval_dataset=val_data,
-            data_collator=data_collator,
-            callbacks=[logger_callback]
+            data_collator=data_collator
         )
 
         trainer.train()
-        logger_callback.save_to_csv(os.path.join(args.output_dir, args.hf_model_name))
-        torch.cuda.empty_cache()
 
         self.model.push_to_hub_merged(
             args.hf_model_name,
@@ -263,8 +225,8 @@ def main():
     parser.add_argument('--model-name', type=str)
     parser.add_argument('--output-dir', type=str, required=True)
     parser.add_argument('--hf-model-name', type=str, required=True, help="Hugging Face model name to upload")
-    parser.add_argument('--batch-size', type=int, default=1)
-    parser.add_argument('--gradient-accumulation-steps', type=int, default=32)
+    parser.add_argument('--batch-size', type=int, default=2)
+    parser.add_argument('--gradient-accumulation-steps', type=int, default=4)
     parser.add_argument('--optim', type=str, default="adamw_torch")
     parser.add_argument('--logging-steps', type=int, default=100)
     parser.add_argument('--learning-rate', type=float, default=2e-4)
