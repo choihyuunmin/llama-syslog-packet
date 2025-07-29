@@ -40,7 +40,7 @@ def load_jsonl_files_from_dir(dataset_dir):
                 all_data.append(data)
     return all_data
 
-def prepare_dataset(dataset_dir, tokenizer, max_seq_len):
+def prepare_dataset(dataset_dir, tokenizer):
     def generate_and_tokenize_prompt(examples):
         alpaca_prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
