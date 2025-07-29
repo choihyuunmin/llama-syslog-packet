@@ -6,7 +6,7 @@ from transformers import (
     AutoTokenizer,
     TrainingArguments,
     Trainer,
-    DataCollatorForSeq2Seq,
+    DataCollatorWithPadding,
     BitsAndBytesConfig,
     AutoConfig
 )
@@ -181,12 +181,7 @@ class FineTuner:
             report_to="none"
         )
 
-        data_collator = DataCollatorForSeq2Seq(
-            tokenizer=self.tokenizer,
-            padding=True,
-            max_length=self.max_seq_len,
-            return_tensors="pt"
-        )
+        data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer)
 
         trainer = Trainer(
             model=self.model,
@@ -197,10 +192,6 @@ class FineTuner:
         )
 
         trainer.train()
-<<<<<<< HEAD
-=======
-        torch.cuda.empty_cache()
->>>>>>> cf91f4b17b7d9e6c2050fba75a742898882dddd3
 
         self.model.push_to_hub_merged(
             args.hf_model_name,
