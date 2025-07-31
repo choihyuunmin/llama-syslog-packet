@@ -5,14 +5,12 @@ from services.packet_analyzer import PacketAnalyzer
 from services.syslog_analyzer import SyslogAnalyzer
 from services.rag_service import RAGService
 
-# --- Page Configuration ---
 st.set_page_config(
     page_title="Llama-PcapLog Chat",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- Custom CSS ---
 st.markdown("""
 <style>
     [data-testid="chat-message-container"] div[data-testid="stMarkdownContainer"] p {
@@ -21,7 +19,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Session State Initialization ---
 def init_session_state():
     st.session_state.messages = []
     st.session_state.rag_service = RAGService(use_openai=False)
@@ -33,7 +30,6 @@ def init_session_state():
 if 'messages' not in st.session_state:
     init_session_state()
 
-# --- Helper Functions ---
 def clear_conversation():
     st.session_state.messages = []
 
@@ -103,11 +99,9 @@ with st.sidebar:
     if st.button("Clear Conversation", use_container_width=True):
         clear_conversation()
 
-# --- Main Content ---
 st.title("Llama-PcapLog Chat")
 st.markdown("Ask questions about your network traffic and log data.")
 
-# Data Summary
 if st.session_state.processed_data:
     with st.container():
         st.header("Data Summary")

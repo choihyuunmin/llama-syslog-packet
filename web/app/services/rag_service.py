@@ -26,8 +26,8 @@ class RAGService:
         
     def _load_llama_model(self):
         try:
-            # model_name = "choihyuunmin/Llama-PcapLog"
-            model_name = "meta-llama/Llama-3.1-8B-Instruct"
+            model_name = "CNU-CHOI/Llama-PcapLog"
+            # model_name = "meta-llama/Llama-3.1-8B-Instruct"
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             
             # Set pad_token if not exists
