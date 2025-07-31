@@ -89,5 +89,5 @@ docker run -p 8000:8000 syspacket-web
 
 
 ## Demo
-![Image](https://github.com/user-attachments/assets/0c8ff499-bb6c-4fbc-acd4-28f5c0e3c99a)
-![Image](https://github.com/user-attachments/assets/4fc17237-087f-4a13-b218-33356edb3877)
+![Image](https://github.com/user-attachments/assets/d2f22ea5-f1ce-4815-a673-60c7a7786582)
+![Image](https://github.com/user-attachments/assets/b2af3a31-eefa-4a18-87ea-2befcacfd24a)
