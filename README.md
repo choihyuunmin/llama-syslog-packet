@@ -57,13 +57,14 @@ poetry install
 poetry env activate
 ```
 
-### 3. env
+### 3. Fine-tuning
 
-```bash
-cp web/env.example web/.env
+```
+cd model/training
+python train_model.py --dataset-dir <dataset_path> --model-name <base_model_name> --hf-model-name <your_model_name> --output-dir <output_path>
 ```
 
-### 4. Start the Application
+### 4. Start the Web Application
 
 #### Run the Web API Server
 ```bash
