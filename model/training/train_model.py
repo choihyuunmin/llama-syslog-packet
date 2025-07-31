@@ -6,7 +6,7 @@ from transformers import (
     AutoTokenizer,
     TrainingArguments,
     Trainer,
-    DataCollatorWithPadding,
+    DataCollatorForLanguageModeling,
     BitsAndBytesConfig,
     AutoConfig
 )
@@ -18,6 +18,9 @@ import gc
 import json
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 import pandas as pd
+
+# TOKENIZERS_PARALLELISM 환경변수 설정
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -38,9 +41,10 @@ def load_jsonl_files_from_dir(dataset_dir):
                 all_data.extend(data)
             else:
                 all_data.append(data)
+
     return all_data
 
-def prepare_dataset(dataset_dir, tokenizer):
+def prepare_dataset(dataset_dir, tokenizer, max_seq_len=2048):
     def generate_and_tokenize_prompt(examples):
         alpaca_prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
@@ -62,14 +66,36 @@ def prepare_dataset(dataset_dir, tokenizer):
             text = alpaca_prompt.format(instruction, input, output) + EOS_TOKEN
             texts.append(text)
 
-        return {"text": texts}
+        # 실제로 tokenization 수행
+        tokenized = tokenizer(
+            texts,
+            truncation=True,
+            padding="max_length", 
+            max_length=max_seq_len,
+            return_tensors=None
+        )
+        
+        # labels를 input_ids와 동일하게 설정 (causal language modeling을 위해)
+        tokenized["labels"] = tokenized["input_ids"].copy()
+        
+        return tokenized
 
 
     all_data = load_jsonl_files_from_dir(dataset_dir)
-    dataset = Dataset.from_list(all_data)
+    
+    processed_data = []
+    for item in all_data:
+        processed_item = {
+            "instruction": item["instruction"],
+            "input": json.dumps(item["input"], ensure_ascii=False),
+            "output": item["output"]
+        }
+        processed_data.append(processed_item)
+    
+    dataset = Dataset.from_list(processed_data)
 
     train_val = dataset.train_test_split(test_size=0.8, shuffle=True, seed=42)
-    
+
     train_data = train_val["train"].map(
         generate_and_tokenize_prompt,
         batched=True,
@@ -91,6 +117,38 @@ def check_huggingface_token():
     if token is None:
         login()
     return token
+
+def merge_and_upload_to_hf(model, tokenizer, output_dir, hf_model_name, push_to_hub=False):
+    logger.info("##10. Merging LoRA adapters with base model")
+    
+    # LoRA 어댑터를 base model에 merge
+    merged_model = model.merge_and_unload()
+    
+    # 메모리 정리
+    del model
+    gc.collect()
+    torch.cuda.empty_cache()
+    
+    # 로컬에 저장
+    merged_output_dir = os.path.join(output_dir, f"{hf_model_name}_merged")
+    os.makedirs(merged_output_dir, exist_ok=True)
+    
+    logger.info(f"##11. Saving merged model to {merged_output_dir}")
+    merged_model.save_pretrained(merged_output_dir)
+    tokenizer.save_pretrained(merged_output_dir)
+    
+    # 허깅페이스에 업로드
+    if push_to_hub:
+        try:
+            logger.info(f"##12. Uploading merged model to Hugging Face: {hf_model_name}")
+            merged_model.push_to_hub(hf_model_name, use_temp_dir=True)
+            tokenizer.push_to_hub(hf_model_name, use_temp_dir=True)
+            logger.info(f"##13. Successfully uploaded to https://huggingface.co/{hf_model_name}")
+        except Exception as e:
+            logger.error(f"Failed to upload to Hugging Face: {e}")
+            logger.info("Model saved locally only.")
+    
+    return merged_model, merged_output_dir
 
 class FineTuner:
     def __init__(self, model_name, dataset_dir, output_dir, max_seq_len=2048):
@@ -150,6 +208,7 @@ class FineTuner:
             tokenizer=self.tokenizer,
             max_seq_len=self.max_seq_len
         )
+        
         logger.info("##8. Dataset loaded")
         return train_data, val_data
 
@@ -173,15 +232,20 @@ class FineTuner:
             lr_scheduler_type=args.lr_scheduler_type,
             group_by_length=True,
             gradient_checkpointing=True,
-            dataloader_num_workers=2,
-            dataloader_pin_memory=True,
+            dataloader_num_workers=0,
+            remove_unused_columns=False,
             torch_compile=False,
             label_names=["labels"],
             eval_steps=args.logging_steps,
             report_to="none"
         )
 
-        data_collator = DataCollatorWithPadding(tokenizer=self.tokenizer)
+        data_collator = DataCollatorForLanguageModeling(
+            tokenizer=self.tokenizer,
+            mlm=False,
+            pad_to_multiple_of=None,
+            return_tensors="pt"
+        )
 
         trainer = Trainer(
             model=self.model,
@@ -193,26 +257,18 @@ class FineTuner:
 
         trainer.train()
 
-        self.model.push_to_hub_merged(
-            args.hf_model_name,
-            use_temp_dir=True,
-            token=HfFolder.get_token()
-        )
-        self.tokenizer.push_to_hub(
-            args.hf_model_name,
-            use_temp_dir=True,
-            token=HfFolder.get_token()
-        )
-        # config 파일도 업로드
-        self.config.push_to_hub(
-            args.hf_model_name,
-            use_temp_dir=True,
-            token=HfFolder.get_token()
-        )
-        logger.info(f"Model uploaded successfully to {args.hf_model_name}")
-
         self.model.save_pretrained(os.path.join(args.output_dir, args.hf_model_name))
         self.config.save_pretrained(os.path.join(args.output_dir, args.hf_model_name))
+
+        merged_model, merged_output_dir = merge_and_upload_to_hf(
+            self.model,
+            self.tokenizer,
+            args.output_dir,
+            args.hf_model_name,
+            push_to_hub=True
+        )
+
+        return merged_model, merged_output_dir
 
 def main():
     parser = argparse.ArgumentParser()
@@ -241,7 +297,7 @@ def main():
         dataset_dir=args.dataset_dir,
         output_dir=args.output_dir
     )
-    finetuner.train(args)
+    merged_model, merged_output_dir = finetuner.train(args)
 
 if __name__ == '__main__':
     main()
